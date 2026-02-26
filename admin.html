@@ -5,69 +5,105 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
-        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
-        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
-        h2 { color: #9C27B0; }
-        input, button { padding: 10px; margin: 5px 0; width: 100%; border-radius: 5px; border: 1px solid #ddd; box-sizing: border-box; }
-        button { background: #9C27B0; color: white; border: none; cursor: pointer; font-weight: bold; }
-        button:hover { background: #7B1FA2; }
-        #adminContent { display: none; } /* Hidden until login */
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; padding: 20px; color: #333; }
+        .container { max-width: 900px; margin: 0 auto; }
+        .card { background: white; padding: 25px; border-radius: 15px; margin-bottom: 25px; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
+        h1 { color: #9C27B0; text-align: center; }
+        h2 { color: #9C27B0; margin-top: 0; border-bottom: 2px solid #f0f2f5; padding-bottom: 10px; }
+        input, button { padding: 12px; margin: 8px 0; width: 100%; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 14px; }
+        button { background: #9C27B0; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { background: #7B1FA2; transform: translateY(-1px); }
+        .update-btns { display: flex; gap: 10px; }
+        
+        /* Table Styling */
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #9C27B0; color: white; border-radius: 4px; }
+
+        /* Login Overlay */
+        #adminContent { display: none; } 
         #loginOverlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #9C27B0; display: flex; justify-content: center; align-items: center; z-index: 1000; }
-        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 300px; }
+        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
 
     <div id="loginOverlay">
         <div class="login-box">
-            <h2>Admin Login</h2>
-            <p>Enter 6-digit code</p>
-            <input type="password" id="adminPass" placeholder="******" maxlength="10">
-            <button onclick="attemptLogin()">Login</button>
+            <img src="https://cdn-icons-png.flaticon.com/512/6195/6195700.png" width="80" alt="Admin">
+            <h2>Braita Admin</h2>
+            <p style="color: #666;">Enter secure 6-digit access code</p>
+            <input type="password" id="adminPass" placeholder="******" style="text-align: center; letter-spacing: 5px;">
+            <button onclick="attemptLogin()">Verify & Enter</button>
         </div>
     </div>
 
-    <div id="adminContent">
-        <h1>Braita Dashboard</h1>
+    <div id="adminContent" class="container">
+        <h1>Braita Master Dashboard</h1>
 
         <div class="card">
-            <h2>Add New Quiz</h2>
-            <input type="text" id="qNum" placeholder="Quiz Number (e.g. quiz00003)">
-            <input type="text" id="qText" placeholder="Question text">
-            <input type="text" id="ans1" placeholder="Answer 1">
-            <input type="text" id="ans2" placeholder="Answer 2">
-            <input type="text" id="ans3" placeholder="Answer 3">
-            <input type="text" id="ans4" placeholder="Answer 4">
-            <input type="text" id="correctAns" placeholder="Correct Answer (Exact text)">
-            <button onclick="uploadQuiz()">Upload Quiz</button>
+            <h2>App Update Control</h2>
+            <p style="font-size: 13px; color: #666;">Current version in your app code is 1. Increase this to force update.</p>
+            <input type="number" id="vNum" placeholder="Set Latest Version (e.g. 2)">
+            <div class="update-btns">
+                <button onclick="updateApp(1)">Enable Update Dialog</button>
+                <button onclick="updateApp(0)" style="background: #e91e63;">Disable Update</button>
+            </div>
         </div>
 
         <div class="card">
-            <h2>App Update Management</h2>
-            <input type="number" id="vNum" placeholder="New Version (e.g. 2)">
-            <button onclick="updateApp(1)">Set Update Available (1)</button>
-            <button onclick="updateApp(0)" style="background: #666;">Turn Off Update (0)</button>
+            <h2>Live User Ranking</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Username</th>
+                        <th>MyPoints</th>
+                        <th>Correct</th>
+                    </tr>
+                </thead>
+                <tbody id="userTableBody">
+                    <tr><td colspan="3" style="text-align:center;">Connecting to database...</td></tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card">
+            <h2>Add New Quiz Question</h2>
+            <input type="text" id="qNum" placeholder="Quiz Key (e.g. quiz00015)">
+            <input type="text" id="qText" placeholder="Enter Question text">
+            <input type="text" id="ans1" placeholder="Option 1">
+            <input type="text" id="ans2" placeholder="Option 2">
+            <input type="text" id="ans3" placeholder="Option 3">
+            <input type="text" id="ans4" placeholder="Option 4">
+            <input type="text" id="correctAns" placeholder="Correct Answer (Must match an option exactly)">
+            <button onclick="uploadQuiz()">Save to Database</button>
         </div>
     </div>
 
     <script>
+        // YOUR FIREBASE CONFIGURATION
         const firebaseConfig = {
-            apiKey: "AIzaSyBCIH-FircSWODcAWJZK2d971b9IqzvbWQ",
+            apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8",
+            authDomain: "braita-cf3e7.firebaseapp.com",
             databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com",
             projectId: "braita-cf3e7",
+            storageBucket: "braita-cf3e7.firebasestorage.app",
+            messagingSenderId: "180429637069",
+            appId: "1:180429637069:web:3aea1a2e89f8936457f084",
+            measurementId: "G-P96NCCZ7BV"
         };
 
+        // Initialize Firebase
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // 1. GENERATE OR RETRIEVE BROWSER DEVICE ID
+        // 1. SESSION MANAGEMENT (24 Hour Rule)
         let adminDeviceId = localStorage.getItem('adminDeviceId');
         if (!adminDeviceId) {
-            adminDeviceId = 'admin_' + Math.random().toString(36).substr(2, 9);
+            adminDeviceId = 'braita_admin_' + Math.random().toString(36).substr(2, 9);
             localStorage.setItem('adminDeviceId', adminDeviceId);
         }
 
-        // 2. CHECK SESSION ON LOAD
         window.onload = function() {
             checkSession();
         };
@@ -89,10 +125,9 @@
         function attemptLogin() {
             const enteredPass = document.getElementById('adminPass').value;
             
-            // Fetch password from Firebase (Matches your AdminLiginKey node)
+            // Matches your 'AdminLiginKey/Password' node in Firebase
             database.ref('AdminLiginKey/Password').get().then((snapshot) => {
                 if (snapshot.exists() && snapshot.val() === enteredPass) {
-                    // Save session to Firebase
                     database.ref('AdminSessions/' + adminDeviceId).set({
                         lastLogin: new Date().getTime(),
                         deviceId: adminDeviceId
@@ -100,7 +135,7 @@
                         showAdminPanel();
                     });
                 } else {
-                    alert("Incorrect Password!");
+                    alert("⚠️ Access Denied: Incorrect Admin Code");
                 }
             });
         }
@@ -108,15 +143,43 @@
         function showAdminPanel() {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('adminContent').style.display = 'block';
+            loadUsers(); // Start real-time user listener
         }
 
+        // 2. LIVE USER MONITOR
+        function loadUsers() {
+            database.ref('User').on('value', (snapshot) => {
+                const users = snapshot.val();
+                const tableBody = document.getElementById('userTableBody');
+                tableBody.innerHTML = ""; 
+
+                if (users) {
+                    for (let id in users) {
+                        let user = users[id];
+                        let row = `<tr>
+                            <td><strong>${user.UserName || 'Visitor'}</strong></td>
+                            <td><span style="color:#9C27B0; font-weight:bold;">${user.MyPoints || 0}</span></td>
+                            <td>${user.TotalCorrectAnsweredQuizCount || 0}</td>
+                        </tr>`;
+                        tableBody.innerHTML += row;
+                    }
+                } else {
+                    tableBody.innerHTML = "<tr><td colspan='3'>No users found.</td></tr>";
+                }
+            });
+        }
+
+        // 3. QUIZ MANAGEMENT
         function uploadQuiz() {
             const id = document.getElementById('qNum').value;
-            if(!id) return alert("Enter Quiz Number!");
+            const question = document.getElementById('qText').value;
+            const correct = document.getElementById('correctAns').value;
+
+            if(!id || !question || !correct) return alert("Please fill all quiz fields!");
 
             const data = {
-                question: document.getElementById('qText').value,
-                correctAnswer: document.getElementById('correctAns').value,
+                question: question,
+                correctAnswer: correct,
                 answers: [
                     document.getElementById('ans1').value,
                     document.getElementById('ans2').value,
@@ -126,22 +189,26 @@
             };
             
             database.ref('Quizzes/Quizzes/' + id).set(data).then(() => {
-                alert("Quiz Added!");
+                alert("✅ Success: Quiz " + id + " is now live!");
                 // Clear inputs
-                ['qNum','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => {
-                    document.getElementById(i).value = "";
+                ['qNum','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(field => {
+                    document.getElementById(field).value = "";
                 });
-            }).catch(err => alert("Error: " + err));
+            }).catch(err => alert("Firebase Error: " + err));
         }
 
+        // 4. UPDATE SYSTEM
         function updateApp(status) {
             const version = document.getElementById('vNum').value;
-            if(!version) return alert("Enter Version Number!");
+            if(!version) return alert("Please enter the new Version Number first!");
 
             database.ref('Updates').update({
                 Avalable: status,
                 Version: parseInt(version)
-            }).then(() => alert("App Update Settings Saved!"));
+            }).then(() => {
+                const msg = status === 1 ? "Update DIALOG IS NOW ACTIVE for users." : "Update dialog is now hidden.";
+                alert("✅ Settings Saved: " + msg);
+            });
         }
     </script>
 </body>

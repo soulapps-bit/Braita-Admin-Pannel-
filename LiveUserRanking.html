@@ -1,49 +1,85 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <title>User List</title>
+    <title>Braita | User List</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <style>
         :root { --primary: #9C27B0; --outer-bg: #212121; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--outer-bg); margin: 0; padding: 20px; }
         .frame { background: white; width: 100%; max-width: 900px; margin: 0 auto; min-height: 90vh; border-radius: 4px; overflow: hidden; padding-bottom: 50px; }
-        .banner { background: var(--primary); color: white; padding: 20px; text-align: center; font-size: 20px; position: relative; }
-        .btn-back { position: absolute; left: 20px; top: 20px; background: #424242; color: white; border: none; padding: 5px 15px; border-radius: 2px; cursor: pointer; font-size: 11px; }
-        .search-user { width: 90%; margin: 40px 5%; padding: 15px; border: 1.5px solid var(--primary); border-radius: 25px; font-size: 13px; }
+        
+        /* Banner with Centered Back Button */
+        .banner { background: var(--primary); color: white; padding: 25px; text-align: center; font-size: 20px; position: relative; }
+        .btn-back { position: absolute; left: 20px; top: 50%; transform: translateY(-50%); background: #424242; color: white; border: none; padding: 5px 15px; border-radius: 2px; cursor: pointer; font-size: 11px; }
+        
+        .search-user { width: 90%; margin: 40px 5%; padding: 15px; border: 1.5px solid var(--primary); border-radius: 25px; font-size: 13px; box-sizing: border-box; }
         table { width: 90%; margin: 0 5%; border-collapse: separate; border-spacing: 0 10px; }
-        th { background: #8E7A8E; color: white; padding: 12px; font-size: 12px; }
-        td { background: #F8F8F8; padding: 15px; text-align: center; font-size: 13px; color: #666; }
+        th { background: #8E7A8E; color: white; padding: 12px; font-size: 12px; font-weight: 500; }
+        td { background: #F8F8F8; padding: 15px; text-align: center; font-size: 13px; color: #666; border-bottom: 1px solid #EEE; }
+        .user-row strong { color: #333; }
     </style>
 </head>
 <body>
     <div class="frame">
-        <div class="banner"><button class="btn-back" onclick="location.href='Admin.html'">Back</button>User List</div>
-        <input type="text" class="search-user" id="userSearch" onkeyup="filterUsers()" placeholder="Search User">
-        <div style="text-align:center; color:var(--primary); font-size:12px; font-weight:bold; margin-bottom:20px;">Live User Ranking</div>
+        <div class="banner">
+            <button class="btn-back" onclick="location.href='Admin.html'">Back</button>
+            User List
+        </div>
+        
+        <input type="text" class="search-user" id="userSearch" onkeyup="filterUsers()" placeholder="Search User...">
+        
+        <div style="text-align:center; color:var(--primary); font-size:14px; font-weight:bold; margin-bottom:20px;">Live User Ranking</div>
+        
         <table>
-            <thead><tr><th>User Name</th><th>Total completed</th><th>Total completed</th><th>Total Corrected</th><th>Total Wrong</th></tr></thead>
+            <thead>
+                <tr>
+                    <th>User Name</th>
+                    <th>Total Completed</th>
+                    <th>My Points</th> <th>Total Corrected</th>
+                    <th>Total Wrong</th>
+                </tr>
+            </thead>
             <tbody id="userList"></tbody>
         </table>
     </div>
+
     <script>
-        const firebaseConfig = { apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" };
+        const firebaseConfig = { 
+            apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", 
+            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" 
+        };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
+
         function loadUsers() {
             database.ref('User').on('value', snap => {
-                const body = document.getElementById('userList'); body.innerHTML = "";
+                const body = document.getElementById('userList'); 
+                body.innerHTML = "";
+                
                 snap.forEach(c => {
                     const u = c.val();
-                    body.innerHTML += `<tr class="user-row"><td>${u.UserName || 'Visitor'}</td><td>${u.TotalCompletedQuizCount || 0}</td><td>${u.TotalCompletedQuizCount || 0}</td><td>${u.TotalCorrectAnsweredQuizCount || 0}</td><td>${u.TotalWrongAnsweredQuizCount || 0}</td></tr>`;
+                    // Injected MyPoints into the second data cell
+                    body.innerHTML += `
+                        <tr class="user-row">
+                            <td><strong>${u.UserName || 'Visitor'}</strong></td>
+                            <td>${u.TotalCompletedQuizCount || 0}</td>
+                            <td style="color:var(--primary); font-weight:bold;">${u.MyPoints || 0}</td>
+                            <td>${u.TotalCorrectAnsweredQuizCount || 0}</td>
+                            <td>${u.TotalWrongAnsweredQuizCount || 0}</td>
+                        </tr>`;
                 });
             });
         }
+
         function filterUsers() {
             const input = document.getElementById('userSearch').value.toLowerCase();
             const rows = document.getElementsByClassName('user-row');
-            for(let r of rows) { r.style.display = r.innerText.toLowerCase().includes(input) ? "" : "none"; }
+            for(let r of rows) { 
+                r.style.display = r.innerText.toLowerCase().includes(input) ? "" : "none"; 
+            }
         }
+        
         loadUsers();
     </script>
 </body>

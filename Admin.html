@@ -126,11 +126,32 @@
             database.ref('Quizzes/Quizzes').on('value', s => document.getElementById('valTotal').innerText = s.numChildren());
         }
         function uploadQuiz() {
-            const key = document.getElementById('qKey').value; if(!key) return alert("Enter Quiz Number");
-            const data = { question: document.getElementById('qText').value, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
-            database.ref('Quizzes/Quizzes/'+key).set(data).then(() => { alert("Saved!"); location.reload(); });
-        }
+    const key = document.getElementById('qKey').value;
+    if(!key) return alert("Enter Quiz Number");
+
+    const data = { 
+        question: document.getElementById('qText').value, 
+        correctAnswer: document.getElementById('correctAns').value, 
+        answers: [
+            document.getElementById('ans1').value, 
+            document.getElementById('ans2').value, 
+            document.getElementById('ans3').value, 
+            document.getElementById('ans4').value
+        ] 
+    };
+
+    database.ref('Quizzes/Quizzes/' + key).set(data).then(() => {
+        alert("Success: Quiz " + key + " has been added!");
+        
+        // Clear all input fields manually instead of reloading
+        ['qKey','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(id => {
+            document.getElementById(id).value = "";
+        });
+        
+    }).catch(err => alert("Error: " + err));
+}
         function updateApp(s) { const v = document.getElementById('vNum').value; database.ref('Updates').update({ Avalable: s, Version: parseInt(v) }).then(() => alert("Updated!")); }
     </script>
 </body>
 </html>
+

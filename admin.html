@@ -32,7 +32,7 @@
         <div class="login-box">
             <img src="https://cdn-icons-png.flaticon.com/512/6195/6195700.png" width="80" alt="Admin">
             <h2>Braita Admin</h2>
-            <p style="color: #666;">Enter secure 6-digit access code</p>
+            <p style="color: #666;">Enter secure access code</p>
             <input type="password" id="adminPass" placeholder="******" style="text-align: center; letter-spacing: 5px;">
             <button onclick="attemptLogin()">Verify & Enter</button>
         </div>
@@ -43,7 +43,7 @@
 
         <div class="card">
             <h2>App Update Control</h2>
-            <p style="font-size: 13px; color: #666;">Current version in your app code is 1. Increase this to force update.</p>
+            <p style="font-size: 13px; color: #666;">Current app version is 1. Increase this to trigger update dialog.</p>
             <input type="number" id="vNum" placeholder="Set Latest Version (e.g. 2)">
             <div class="update-btns">
                 <button onclick="updateApp(1)">Enable Update Dialog</button>
@@ -58,7 +58,7 @@
                     <tr>
                         <th>Username</th>
                         <th>MyPoints</th>
-                        <th>Correct</th>
+                        <th>Correct Quizzes</th>
                     </tr>
                 </thead>
                 <tbody id="userTableBody">
@@ -69,7 +69,7 @@
 
         <div class="card">
             <h2>Add New Quiz Question</h2>
-            <input type="text" id="qNum" placeholder="Quiz Key (e.g. quiz00015)">
+            <input type="text" id="qNum" placeholder="Quiz Key (e.g. quiz00003)">
             <input type="text" id="qText" placeholder="Enter Question text">
             <input type="text" id="ans1" placeholder="Option 1">
             <input type="text" id="ans2" placeholder="Option 2">
@@ -85,7 +85,7 @@
         const firebaseConfig = {
             apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8",
             authDomain: "braita-cf3e7.firebaseapp.com",
-            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com",
+            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com/",
             projectId: "braita-cf3e7",
             storageBucket: "braita-cf3e7.firebasestorage.app",
             messagingSenderId: "180429637069",
@@ -125,7 +125,7 @@
         function attemptLogin() {
             const enteredPass = document.getElementById('adminPass').value;
             
-            // Matches your 'AdminLiginKey/Password' node in Firebase
+            // Checks password against the 'AdminLiginKey/Password' node in your DB
             database.ref('AdminLiginKey/Password').get().then((snapshot) => {
                 if (snapshot.exists() && snapshot.val() === enteredPass) {
                     database.ref('AdminSessions/' + adminDeviceId).set({
@@ -143,7 +143,7 @@
         function showAdminPanel() {
             document.getElementById('loginOverlay').style.display = 'none';
             document.getElementById('adminContent').style.display = 'block';
-            loadUsers(); // Start real-time user listener
+            loadUsers(); // Start live user listener
         }
 
         // 2. LIVE USER MONITOR
@@ -188,6 +188,7 @@
                 ]
             };
             
+            // Path: Quizzes/Quizzes/quizXXXXX
             database.ref('Quizzes/Quizzes/' + id).set(data).then(() => {
                 alert("✅ Success: Quiz " + id + " is now live!");
                 // Clear inputs

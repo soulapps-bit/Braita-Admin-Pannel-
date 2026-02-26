@@ -7,6 +7,10 @@
     <style>
         :root { --primary: #9C27B0; --outer-bg: #212121; --card-bg: #FFFFFF; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--outer-bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
+        
+        /* HIDDEN CONTENT BY DEFAULT */
+        #adminPanel { display: none; } 
+
         .frame { background: var(--card-bg); width: 100%; max-width: 900px; min-height: 95vh; border-radius: 4px; overflow: hidden; }
         .banner { background: var(--primary); color: white; padding: 25px; text-align: center; font-size: 22px; font-weight: 500; }
         .content { padding: 30px; }
@@ -14,23 +18,40 @@
         .stats-card, .update-card { background: #F8F8F8; padding: 20px; border-radius: 4px; border: 1px solid #EEE; }
         .stats-card { flex: 1.5; display: flex; justify-content: space-around; align-items: center; }
         .update-card { flex: 1; text-align: center; }
+        
         /* Layered Circle Style */
         .circle-outer { width: 90px; height: 90px; border-radius: 50%; background: rgba(156, 39, 176, 0.2); display: flex; align-items: center; justify-content: center; }
         .circle-mid { width: 80px; height: 80px; border-radius: 50%; background: rgba(156, 39, 176, 0.4); display: flex; align-items: center; justify-content: center; }
         .circle-inner { width: 70px; height: 70px; border-radius: 50%; background: var(--primary); display: flex; align-items: center; justify-content: center; color: white; font-size: 20px; font-weight: bold; }
-        /* Form Styling with Labels Above */
+        
+        /* Form Styling */
         .form-container { background: #F8F8F8; padding: 30px; border-radius: 4px; position: relative; }
         .field-group { margin-bottom: 15px; text-align: left; }
         .field-label { font-size: 12px; color: #666; margin-bottom: 5px; display: block; font-weight: 600; padding-left: 5px; }
         input { width: 100%; padding: 12px; border: 1px solid #E1BEE7; border-radius: 2px; background: #F3E5F5; box-sizing: border-box; font-size: 14px; }
-        input:focus { outline: 2px solid #2196F3; } /* Matching the blue focus in image_8ccb5f.png */
+        input:focus { outline: 2px solid #2196F3; }
+        
         .btn { padding: 12px; border: none; border-radius: 4px; color: white; font-weight: bold; cursor: pointer; }
         .btn-purple { background: var(--primary); width: 100%; }
         .btn-action { padding: 8px 20px; font-size: 13px; min-width: 100px; }
+
+        /* LOGIN OVERLAY STYLES */
+        #loginOverlay { position: fixed; inset: 0; background: var(--primary); display: flex; justify-content: center; align-items: center; z-index: 10000; }
+        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 320px; box-shadow: 0 10px 25px rgba(0,0,0,0.2); }
     </style>
 </head>
 <body>
-    <div class="frame">
+
+    <div id="loginOverlay">
+        <div class="login-box">
+            <h2 style="color: var(--primary); margin-bottom: 20px;">Admin Access</h2>
+            <p style="font-size: 13px; color: #666; margin-bottom: 20px;">Enter secure access code</p>
+            <input type="password" id="adminPass" placeholder="******" style="text-align: center; letter-spacing: 5px; background: #eee; border: none;">
+            <button onclick="attemptLogin()" class="btn btn-purple" style="margin-top: 20px;">Verify & Enter</button>
+        </div>
+    </div>
+
+    <div id="adminPanel" class="frame">
         <div class="banner">Braita Admin Panel</div>
         <div class="content">
             <div class="stats-row">
@@ -40,15 +61,13 @@
                     <div style="text-align:center;"><div class="circle-outer"><div class="circle-mid"><div class="circle-inner" id="valTotal">0</div></div></div><div style="font-size:11px; font-weight:bold; color:#666; margin-top:5px;">All Quiz Count</div></div>
                 </div>
                 <div class="update-card">
-    <div style="color:var(--primary); font-size:12px; font-weight:bold; margin-bottom:15px;">App update control</div>
-    
-    <input type="number" id="vNum" placeholder="Version Number" style="margin-bottom: 20px;">
-    
-    <div style="display:flex; justify-content: space-between; gap:10px;">
-        <button class="btn btn-purple" style="width: 100%;" onclick="updateApp(1)">Enable Update</button>
-        <button class="btn" style="background:#FF0000; width:100%;" onclick="updateApp(0)">Disable Update</button>
-    </div>
-</div>
+                    <div style="color:var(--primary); font-size:12px; font-weight:bold; margin-bottom:15px;">App update control</div>
+                    <input type="number" id="vNum" placeholder="Version Number" style="margin-bottom: 20px;">
+                    <div style="display:flex; justify-content: space-between; gap:10px;">
+                        <button class="btn btn-purple" onclick="updateApp(1)">Enable Update</button>
+                        <button class="btn" style="background:#FF0000; width:100%;" onclick="updateApp(0)">Disable Update</button>
+                    </div>
+                </div>
             </div>
 
             <div class="form-container">
@@ -58,58 +77,94 @@
                 </div>
                 <div style="color:var(--primary); font-size:14px; font-weight:bold; margin-bottom:20px; text-align:center;">Add New Quiz Question</div>
                 
-                <div class="field-group">
-                    <span class="field-label">Quiz Number</span>
-                    <input type="text" id="qKey" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Question</span>
-                    <input type="text" id="qText" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Answer 1</span>
-                    <input type="text" id="ans1" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Answer 2</span>
-                    <input type="text" id="ans2" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Answer 3</span>
-                    <input type="text" id="ans3" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Answer 4</span>
-                    <input type="text" id="ans4" placeholder="">
-                </div>
-                <div class="field-group">
-                    <span class="field-label">Correct Answer</span>
-                    <input type="text" id="correctAns" placeholder="">
-                </div>
+                <div class="field-group"><span class="field-label">Quiz Number</span><input type="text" id="qKey"></div>
+                <div class="field-group"><span class="field-label">Question</span><input type="text" id="qText"></div>
+                <div class="field-group"><span class="field-label">Answer 1</span><input type="text" id="ans1"></div>
+                <div class="field-group"><span class="field-label">Answer 2</span><input type="text" id="ans2"></div>
+                <div class="field-group"><span class="field-label">Answer 3</span><input type="text" id="ans3"></div>
+                <div class="field-group"><span class="field-label">Answer 4</span><input type="text" id="ans4"></div>
+                <div class="field-group"><span class="field-label">Correct Answer</span><input type="text" id="correctAns"></div>
                 <button class="btn btn-purple" onclick="uploadQuiz()">Submit Quiz</button>
             </div>
         </div>
     </div>
+
     <script>
         const firebaseConfig = { apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", authDomain: "braita-cf3e7.firebaseapp.com", databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com", projectId: "braita-cf3e7", storageBucket: "braita-cf3e7.firebasestorage.app", messagingSenderId: "180429637069", appId: "1:180429637069:web:3aea1a2e89f8936457f084" };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
-        function start() {
+
+        // --- 1. DEVICE & SESSION LOGIC ---
+        let adminDeviceId = localStorage.getItem('adminDeviceId');
+        if (!adminDeviceId) {
+            adminDeviceId = 'braita_admin_' + Math.random().toString(36).substr(2, 9);
+            localStorage.setItem('adminDeviceId', adminDeviceId);
+        }
+
+        window.onload = function() {
+            checkSession();
+        };
+
+        function checkSession() {
+            database.ref('AdminSessions/' + adminDeviceId).get().then((snapshot) => {
+                if (snapshot.exists()) {
+                    const lastLogin = snapshot.val().lastLogin;
+                    const currentTime = new Date().getTime();
+                    const twentyFourHours = 24 * 60 * 60 * 1000;
+                    if (currentTime - lastLogin < twentyFourHours) {
+                        showAdminPanel();
+                    }
+                }
+            });
+        }
+
+        function attemptLogin() {
+            const enteredPass = document.getElementById('adminPass').value;
+            database.ref('AdminLiginKey/Password').get().then((snapshot) => {
+                if (snapshot.exists() && snapshot.val() === enteredPass) {
+                    database.ref('AdminSessions/' + adminDeviceId).set({
+                        lastLogin: new Date().getTime(),
+                        deviceId: adminDeviceId
+                    }).then(() => {
+                        showAdminPanel();
+                    });
+                } else {
+                    alert("⚠️ Access Denied: Incorrect Admin Code");
+                }
+            });
+        }
+
+        function showAdminPanel() {
+            document.getElementById('loginOverlay').style.display = 'none';
+            document.getElementById('adminPanel').style.display = 'block';
+            startDataListeners(); // Start loading counters
+        }
+
+        // --- 2. DATA LISTENERS ---
+        function startDataListeners() {
             database.ref('User').on('value', snap => {
                 let uCount = 0, hScore = 0;
                 snap.forEach(c => { uCount++; let comp = c.val().TotalCompletedQuizCount || 0; if(comp > hScore) hScore = comp; });
-                document.getElementById('valUsers').innerText = uCount; document.getElementById('valHigh').innerText = hScore;
+                document.getElementById('valUsers').innerText = uCount; 
+                document.getElementById('valHigh').innerText = hScore;
             });
-            database.ref('Quizzes/Quizzes').on('value', snap => { document.getElementById('valTotal').innerText = snap.numChildren(); });
+            database.ref('Quizzes/Quizzes').on('value', snap => { 
+                document.getElementById('valTotal').innerText = snap.numChildren(); 
+            });
         }
+
+        // --- 3. FUNCTIONALITY ---
         function uploadQuiz() {
             const key = document.getElementById('qKey').value;
             if(!key) return alert("Enter Quiz Number");
             const data = { question: document.getElementById('qText').value, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
             database.ref('Quizzes/Quizzes/'+key).set(data).then(() => { alert("Saved!"); location.reload(); });
         }
-        function updateApp(s) { const v = document.getElementById('vNum').value; database.ref('Updates').update({ Avalable: s, Version: parseInt(v) }).then(() => alert("Updated!")); }
-        start();
+
+        function updateApp(s) { 
+            const v = document.getElementById('vNum').value; 
+            database.ref('Updates').update({ Avalable: s, Version: parseInt(v) }).then(() => alert("Updated!")); 
+        }
     </script>
 </body>
 </html>

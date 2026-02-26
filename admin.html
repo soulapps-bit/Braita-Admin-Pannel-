@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Braita Admin Panel</title>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f4f4; padding: 20px; }
+        .card { background: white; padding: 20px; border-radius: 15px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        h2 { color: #9C27B0; }
+        input, button { padding: 10px; margin: 5px 0; width: 100%; border-radius: 5px; border: 1px solid #ddd; }
+        button { background: #9C27B0; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #7B1FA2; }
+    </style>
+</head>
+<body>
+
+    <h1>Braita Dashboard</h1>
+
+    <div class="card">
+        <h2>Add New Quiz</h2>
+        <input type="text" id="qNum" placeholder="Quiz Number (e.g. quiz00003)">
+        <input type="text" id="qText" placeholder="Question text">
+        <input type="text" id="ans1" placeholder="Answer 1">
+        <input type="text" id="ans2" placeholder="Answer 2">
+        <input type="text" id="ans3" placeholder="Answer 3">
+        <input type="text" id="ans4" placeholder="Answer 4">
+        <input type="text" id="correctAns" placeholder="Correct Answer (Exact text)">
+        <button onclick="uploadQuiz()">Upload Quiz</button>
+    </div>
+
+    <div class="card">
+        <h2>App Update Management</h2>
+        <p>Set Version to trigger update dialog in app.</p>
+        <input type="number" id="vNum" placeholder="New Version (e.g. 2)">
+        <button onclick="updateApp(1)">Set Update Available (1)</button>
+        <button onclick="updateApp(0)" style="background: #666;">Turn Off Update (0)</button>
+    </div>
+
+    <script>
+        // REPLACE WITH YOUR PROJECT CONFIG
+        const firebaseConfig = {
+            apiKey: "AIzaSyBCIH-FircSWODcAWJZK2d971b9IqzvbWQ",
+            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com",
+            projectId: "braita-cf3e7",
+            // ... add other keys from Firebase Console
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const database = firebase.database();
+
+        function uploadQuiz() {
+            const id = document.getElementById('qNum').value;
+            const data = {
+                question: document.getElementById('qText').value,
+                correctAnswer: document.getElementById('correctAns').value,
+                answers: [
+                    document.getElementById('ans1').value,
+                    document.getElementById('ans2').value,
+                    document.getElementById('ans3').value,
+                    document.getElementById('ans4').value
+                ]
+
+                .then(() => {
+    alert("Quiz Added!");
+    document.getElementById('qNum').value = "";
+    document.getElementById('qText').value = "";
+    document.getElementById('ans1').value = "";
+    document.getElementById('ans2').value = "";
+    document.getElementById('ans3').value = "";
+    document.getElementById('ans4').value = "";
+    document.getElementById('correctAns').value = "";
+})
+            };
+            
+            // Matches your Quizzes/Quizzes structure
+            database.ref('Quizzes/Quizzes/' + id).set(data)
+                .then(() => alert("Quiz Added!"))
+                .catch(err => console.error(err));
+        }
+
+        function updateApp(status) {
+            const version = document.getElementById('vNum').value;
+            database.ref('Updates').update({
+                Avalable: status,
+                Version: parseInt(version)
+            }).then(() => alert("App Update Settings Saved!"));
+        }
+    </script>
+</body>
+</html>

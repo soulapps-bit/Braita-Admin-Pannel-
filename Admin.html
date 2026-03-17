@@ -132,15 +132,31 @@
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
+    // --- Persistance Logic ---
+    let adminDeviceId = localStorage.getItem('adminDeviceId') || 'br_'+Math.random().toString(36).substr(2,9);
+    localStorage.setItem('adminDeviceId', adminDeviceId);
+
+    window.onload = function() {
+        database.ref('AdminSessions/'+adminDeviceId).get().then(s => {
+            if(s.exists() && Date.now() - s.val().lastLogin < 86400000) {
+                showPanel();
+            }
+        });
+    };
+
     function attemptLogin() {
         const pass = document.getElementById('adminPass').value;
         database.ref('AdminLiginKey/Password').get().then(s => {
             if(s.val() === pass) {
-                document.getElementById('loginOverlay').style.display = 'none';
-                document.getElementById('adminPanel').style.display = 'block';
-                initDashboard();
+                database.ref('AdminSessions/'+adminDeviceId).set({lastLogin: Date.now()}).then(showPanel);
             } else { alert("Key Incorrect"); }
         });
+    }
+
+    function showPanel() {
+        document.getElementById('loginOverlay').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        initDashboard();
     }
 
     function switchTab(btn, tabId) {
@@ -168,7 +184,7 @@
             document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
         });
 
-        // Existing Schedule Sync
+        // Competition Data Fetch
         database.ref('Competition').get().then(s => {
             if(s.exists()){
                 const d = s.val();

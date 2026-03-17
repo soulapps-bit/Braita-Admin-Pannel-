@@ -6,306 +6,260 @@
     <title>Braita | Expert Admin Hub</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #9C27B0; --secondary: #7B1FA2; --outer-bg: #121212; --card-bg: #FFFFFF; --accent: #00bcd4; }
-        body { font-family: 'Segoe UI', Roboto, sans-serif; background: var(--outer-bg); margin: 0; padding: 15px; display: flex; justify-content: center; }
+        :root { --primary: #9C27B0; --bg: #f4f7f6; --text: #333; --white: #ffffff; }
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 70px; }
+
+        /* Professional Header */
+        .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+
+        /* Tab Content */
+        .container { padding: 15px; max-width: 800px; margin: auto; }
+        .tab-content { display: none; animation: fadeIn 0.3s ease; }
+        .tab-content.active { display: block; }
+
+        /* Mobile Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
+        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; }
+        .nav-item.active { color: var(--primary); }
+
+        /* Card Style */
+        .card { background: var(--white); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; }
+
+        /* Dynamic List Items */
+        .list-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; }
+        .btn-delete { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #ff5252; cursor: pointer; }
+
+        /* Form Inputs */
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
+        input:focus { border-color: var(--primary); outline: none; background: #fff; }
+
+        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
         
-        #adminPanel { display: none; width: 100%; max-width: 1100px; animation: fadeIn 0.5s ease; }
-        .frame { background: var(--card-bg); border-radius: 12px; overflow: hidden; min-height: 95vh; box-shadow: 0 20px 50px rgba(0,0,0,0.5); }
-        .banner { background: linear-gradient(135deg, var(--primary), var(--secondary)); color: white; padding: 30px; text-align: center; font-size: 26px; font-weight: 700; letter-spacing: 1px; }
-        
-        /* Navigation Tabs */
-        .tab-bar { display: flex; background: #f5f5f5; border-bottom: 1px solid #ddd; }
-        .tab-btn { flex: 1; padding: 15px; border: none; background: none; cursor: pointer; font-weight: 600; color: #666; transition: 0.3s; border-bottom: 3px solid transparent; }
-        .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); background: #fff; }
+        /* Stats Bubble */
+        .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .stat-bubble { background: var(--primary); color: white; padding: 15px 5px; border-radius: 15px; text-align: center; }
+        .stat-bubble span { display: block; font-size: 18px; font-weight: 800; }
+        .stat-bubble small { font-size: 9px; opacity: 0.8; text-transform: uppercase; }
 
-        .content { padding: 25px; }
-        .tab-content { display: none; }
-        .tab-content.active { display: block; animation: slideUp 0.4s ease; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Stats Grid */
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
-        .stat-box { background: #fff; border: 1px solid #eee; padding: 20px; border-radius: 10px; text-align: center; box-shadow: 0 4px 6px rgba(0,0,0,0.02); }
-        .stat-val { font-size: 24px; font-weight: 800; color: var(--primary); margin-bottom: 5px; }
-        .stat-label { font-size: 12px; color: #888; text-transform: uppercase; font-weight: 700; }
-
-        /* Professional Forms */
-        .section-title { font-size: 18px; font-weight: 700; color: #333; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; border-left: 4px solid var(--primary); padding-left: 15px; }
-        .grid-form { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #fafafa; padding: 20px; border-radius: 10px; margin-bottom: 20px; }
-        .field-group { display: flex; flex-direction: column; gap: 5px; }
-        .field-label { font-size: 12px; color: #555; font-weight: 600; }
-        input, select { padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-size: 14px; transition: 0.3s; }
-        input:focus { border-color: var(--primary); outline: none; box-shadow: 0 0 0 3px rgba(156, 39, 176, 0.1); }
-        
-        .btn { padding: 14px 24px; border: none; border-radius: 6px; font-weight: 700; cursor: pointer; transition: 0.3s; display: inline-flex; align-items: center; justify-content: center; gap: 8px; }
-        .btn-primary { background: var(--primary); color: white; width: 100%; }
-        .btn-primary:hover { background: var(--secondary); transform: translateY(-1px); }
-        .btn-dark { background: #424242; color: white; }
-
-        /* Login Overlay */
-        #loginOverlay { position: fixed; inset: 0; background: var(--primary); display: flex; justify-content: center; align-items: center; z-index: 10000; }
-        .login-box { background: white; padding: 40px; border-radius: 20px; text-align: center; width: 320px; box-shadow: 0 15px 35px rgba(0,0,0,0.2); }
-
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
-
-        @media (max-width: 600px) { .grid-form { grid-template-columns: 1fr; } .tab-bar { font-size: 12px; } }
+        /* Login Screen */
+        #loginOverlay { position: fixed; inset: 0; background: var(--primary); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; }
+        .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; }
     </style>
 </head>
 <body>
 
-    <div id="loginOverlay">
-        <div class="login-box">
-            <h2 style="color: var(--primary); margin-top:0;">Admin Access</h2>
-            <p style="color: #666; font-size: 14px;">Please enter the management key</p>
-            <input type="password" id="adminPass" placeholder="••••••" style="text-align:center; letter-spacing:5px; font-size: 20px;">
-            <button onclick="attemptLogin()" class="btn btn-primary" style="margin-top:20px;">Verify Identity</button>
+<div id="loginOverlay">
+    <div class="login-card">
+        <i class="fas fa-user-shield" style="font-size: 40px; color: var(--primary);"></i>
+        <h2 style="margin: 15px 0;">Admin Auth</h2>
+        <input type="password" id="adminPass" placeholder="Enter Admin Key" style="text-align: center; letter-spacing: 3px;">
+        <button class="btn-save" onclick="attemptLogin()">Unlock Dashboard</button>
+    </div>
+</div>
+
+<div id="adminPanel">
+    <div class="header"><h1>BRAITA ADMIN HUB</h1></div>
+
+    <div class="container">
+        <div id="nav-dash" class="tab-content active">
+            <div class="stats-row">
+                <div class="stat-bubble"><span id="valUsers">0</span><small>Users</small></div>
+                <div class="stat-bubble"><span id="valHigh">0</span><small>Record</small></div>
+                <div class="stat-bubble"><span id="valTotal">0</span><small>Quizzes</small></div>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">Add New Quiz <small id="autoNextKey" style="color:#888"></small></div>
+                <div class="input-group"><label>Question</label><input type="text" id="qText"></div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                    <div class="input-group"><label>Option 1</label><input type="text" id="ans1"></div>
+                    <div class="input-group"><label>Option 2</label><input type="text" id="ans2"></div>
+                    <div class="input-group"><label>Option 3</label><input type="text" id="ans3"></div>
+                    <div class="input-group"><label>Option 4</label><input type="text" id="ans4"></div>
+                </div>
+                <div class="input-group"><label>Correct Answer (Exact Text)</label><input type="text" id="correctAns"></div>
+                <button class="btn-save" onclick="uploadQuiz()">Publish Quiz</button>
+            </div>
+        </div>
+
+        <div id="nav-comp" class="tab-content">
+            <div class="card">
+                <div class="card-title">Schedule & Timing</div>
+                <div class="input-group"><label>Start Date (DD-MM-YYYY)</label><input type="text" id="compStartD"></div>
+                <div class="input-group"><label>Start Time (HH:MM)</label><input type="text" id="compStartT"></div>
+                <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
+                <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
+                <button class="btn-save" onclick="updateCompetition()">Update Timing</button>
+            </div>
+            
+            <div class="card">
+                <div class="card-title">App Update Force</div>
+                <div class="input-group"><label>App Version</label><input type="number" id="vNum"></div>
+                <select id="vStatus" style="margin-bottom: 10px;">
+                    <option value="1">Available</option>
+                    <option value="0">Not Available</option>
+                </select>
+                <button class="btn-save" style="background:#444" onclick="updateApp()">Sync Version</button>
+            </div>
+        </div>
+
+        <div id="nav-media" class="tab-content">
+            <div class="card">
+                <div class="card-title">Add Guide Video</div>
+                <input type="text" id="newVidTitle" placeholder="Video Title" style="margin-bottom:10px;">
+                <input type="text" id="newVidUrl" placeholder="Video URL (FB/YT)">
+                <button class="btn-save" onclick="addItem('GuideVideos', 'newVidTitle', 'newVidUrl')">Add to List</button>
+            </div>
+            <div class="card">
+                <div class="card-title">Active Guides</div>
+                <div id="guideList"></div>
+            </div>
+        </div>
+
+        <div id="nav-winners" class="tab-content">
+            <div class="card">
+                <div class="card-title">Add Winner Post</div>
+                <input type="text" id="newWinCap" placeholder="Winner Name/Caption" style="margin-bottom:10px;">
+                <input type="text" id="newWinUrl" placeholder="Facebook Post URL">
+                <button class="btn-save" onclick="addItem('WinnersPosts', 'newWinCap', 'newWinUrl')">Add Post</button>
+            </div>
+            <div class="card">
+                <div class="card-title">Hall of Fame</div>
+                <div id="winnersList"></div>
+            </div>
         </div>
     </div>
 
-    <div id="adminPanel" class="frame">
-        <div class="banner">BRAITA MANAGEMENT HUB</div>
+    <div class="bottom-nav">
+        <button class="nav-item active" onclick="switchTab(this, 'nav-dash')"><i class="fas fa-home"></i>Home</button>
+        <button class="nav-item" onclick="switchTab(this, 'nav-comp')"><i class="fas fa-trophy"></i>Event</button>
+        <button class="nav-item" onclick="switchTab(this, 'nav-media')"><i class="fas fa-play-circle"></i>Guides</button>
+        <button class="nav-item" onclick="switchTab(this, 'nav-winners')"><i class="fas fa-award"></i>Winners</button>
+    </div>
+</div>
+
+<script>
+    const firebaseConfig = { 
+        apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", 
+        databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" 
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    function attemptLogin() {
+        const pass = document.getElementById('adminPass').value;
+        database.ref('AdminLiginKey/Password').get().then(s => {
+            if(s.val() === pass) {
+                document.getElementById('loginOverlay').style.display = 'none';
+                initDashboard();
+            } else { alert("Invalid Key"); }
+        });
+    }
+
+    function switchTab(btn, tabId) {
+        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+        document.getElementById(tabId).classList.add('active');
+        btn.classList.add('active');
+        window.scrollTo(0,0);
+    }
+
+    function initDashboard() {
+        // Real-time Stats
+        database.ref('User').on('value', snap => {
+            let count = 0, high = 0;
+            snap.forEach(u => { count++; let pts = u.val().MyPoints || 0; if(pts > high) high = pts; });
+            document.getElementById('valUsers').innerText = count;
+            document.getElementById('valHigh').innerText = high;
+        });
+
+        // Quiz Auto-key
+        database.ref('Quizzes/Quizzes').on('value', snap => {
+            document.getElementById('valTotal').innerText = snap.numChildren();
+            let keys = Object.keys(snap.val() || {}).sort();
+            let lastKey = keys.length ? keys[keys.length - 1] : "quiz00000";
+            let nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
+            document.getElementById('autoNextKey').innerText = "Target: " + nextKey;
+            window.nextQuizKey = nextKey;
+        });
+
+        // Load Lists
+        loadDynamicList('GuideVideos', 'guideList', 'VideoTitle', 'VideoUrl');
+        loadDynamicList('WinnersPosts', 'winnersList', 'Caption', 'PostUrl');
+    }
+
+    function loadDynamicList(node, containerId, labelKey, urlKey) {
+        database.ref(node).on('value', snap => {
+            const container = document.getElementById(containerId);
+            container.innerHTML = "";
+            snap.forEach(child => {
+                const data = child.val();
+                container.innerHTML += `
+                    <div class="list-item">
+                        <strong>${data[labelKey] || 'No Title'}</strong><br>
+                        <small style="color:#888">${(data[urlKey] || '').substring(0, 30)}...</small>
+                        <i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', '${child.key}')"></i>
+                    </div>`;
+            });
+        });
+    }
+
+    function addItem(node, labelId, urlId) {
+        const label = document.getElementById(labelId).value;
+        const url = document.getElementById(urlId).value;
+        if(!label || !url) return alert("Fill both fields");
         
-        <div class="tab-bar">
-            <button class="tab-btn active" onclick="openTab(event, 'tab-dash')">Dashboard</button>
-            <button class="tab-btn" onclick="openTab(event, 'tab-comp')">Competition</button>
-            <button class="tab-btn" onclick="openTab(event, 'tab-media')">Media & Guide</button>
-            <button class="tab-btn" onclick="openTab(event, 'tab-winners')">Winners</button>
-        </div>
+        const data = {};
+        data[node === 'GuideVideos' ? 'VideoTitle' : 'Caption'] = label;
+        data[node === 'GuideVideos' ? 'VideoUrl' : 'PostUrl'] = url;
 
-        <div class="content">
-            <!-- DASHBOARD TAB -->
-            <div id="tab-dash" class="tab-content active">
-                <div class="stats-grid">
-                    <div class="stat-box"><div class="stat-val" id="valUsers">0</div><div class="stat-label">Total Users</div></div>
-                    <div class="stat-box"><div class="stat-val" id="valHigh">0</div><div class="stat-label">Peak Score</div></div>
-                    <div class="stat-box"><div class="stat-val" id="valTotal">0</div><div class="stat-label">Banked Quizzes</div></div>
-                </div>
+        database.ref(node).push(data).then(() => {
+            document.getElementById(labelId).value = "";
+            document.getElementById(urlId).value = "";
+        });
+    }
 
-                <div class="section-title">Quick Quiz Add</div>
-                <div style="text-align: right; font-size: 12px; color: var(--primary); margin-bottom: 5px; font-weight: bold;">
-                    Next Slot: <span id="autoNextKey">...</span>
-                </div>
-                <div class="grid-form">
-                    <div class="field-group"><label class="field-label">Quiz ID</label><input type="text" id="qKey" placeholder="quiz00001"></div>
-                    <div class="field-group"><label class="field-label">Question Text</label><input type="text" id="qText"></div>
-                    <div class="field-group"><label class="field-label">Option 1</label><input type="text" id="ans1"></div>
-                    <div class="field-group"><label class="field-label">Option 2</label><input type="text" id="ans2"></div>
-                    <div class="field-group"><label class="field-label">Option 3</label><input type="text" id="ans3"></div>
-                    <div class="field-group"><label class="field-label">Option 4</label><input type="text" id="ans4"></div>
-                    <div class="field-group" style="grid-column: span 2;"><label class="field-label">Correct Answer String</label><input type="text" id="correctAns"></div>
-                </div>
-                <button class="btn btn-primary" onclick="uploadQuiz()">Save Question to Database</button>
-                
-                <div style="margin-top: 30px; display: flex; gap: 10px;">
-                    <button class="btn btn-dark" onclick="location.href='LiveUserRanking.html'">User Leaderboard</button>
-                    <button class="btn btn-dark" onclick="location.href='ManageQuizzes.html'">Manage Library</button>
-                </div>
-            </div>
+    function deleteItem(node, key) {
+        if(confirm("Remove this item?")) database.ref(node + '/' + key).remove();
+    }
 
-            <!-- COMPETITION TAB -->
-            <div id="tab-comp" class="tab-content">
-                <div class="section-title">Schedule Competition</div>
-                <div class="grid-form">
-                    <div class="field-group"><label class="field-label">Start Date (DD-MM-YYYY)</label><input type="text" id="compStartD" placeholder="18-03-2026"></div>
-                    <div class="field-group"><label class="field-label">Start Time (HH:MM)</label><input type="text" id="compStartT" placeholder="08:00"></div>
-                    <div class="field-group"><label class="field-label">End Date (DD-MM-YYYY)</label><input type="text" id="compEndD" placeholder="19-03-2026"></div>
-                    <div class="field-group"><label class="field-label">End Time (HH:MM)</label><input type="text" id="compEndT" placeholder="18:00"></div>
-                    <div class="field-group" style="grid-column: span 2;"><label class="field-label">Status Label</label><input type="text" id="compStatus" placeholder="Now"></div>
-                </div>
-                <button class="btn btn-primary" onclick="updateCompetition()">Update Event Schedule</button>
-
-                <div class="section-title" style="margin-top: 40px;">App Update Control</div>
-                <div class="grid-form">
-                    <div class="field-group"><label class="field-label">Current Version</label><input type="number" id="vNum"></div>
-                    <div class="field-group"><label class="field-label">Action</label>
-                        <select id="vStatus">
-                            <option value="1">Enable Update Force</option>
-                            <option value="0">Disable Update Force</option>
-                        </select>
-                    </div>
-                </div>
-                <button class="btn btn-dark" style="width: 100%;" onclick="updateApp()">Sync App Settings</button>
-            </div>
-
-            <!-- MEDIA TAB -->
-            <div id="tab-media" class="tab-content">
-                <div class="section-title">Guide Videos Management</div>
-                <div class="grid-form">
-                    <div class="field-group"><label class="field-label">Video 1 Title</label><input type="text" id="vid1T"></div>
-                    <div class="field-group"><label class="field-label">Video 1 URL (FB/YouTube)</label><input type="text" id="vid1U"></div>
-                    <div class="field-group"><label class="field-label">Video 2 Title</label><input type="text" id="vid2T"></div>
-                    <div class="field-group"><label class="field-label">Video 2 URL (FB/YouTube)</label><input type="text" id="vid2U"></div>
-                </div>
-                <button class="btn btn-primary" onclick="updateMedia()">Update Video Guides</button>
-            </div>
-
-            <!-- WINNERS TAB -->
-            <div id="tab-winners" class="tab-content">
-                <div class="section-title">Winners Hall of Fame</div>
-                <div class="grid-form">
-                    <div class="field-group"><label class="field-label">Winner 1 Caption</label><input type="text" id="winCap1"></div>
-                    <div class="field-group"><label class="field-label">Winner 1 Post URL</label><input type="text" id="winPost1"></div>
-                    <div class="field-group"><label class="field-label">Winner 2 Caption</label><input type="text" id="winCap2"></div>
-                    <div class="field-group"><label class="field-label">Winner 2 Post URL</label><input type="text" id="winPost2"></div>
-                </div>
-                <button class="btn btn-primary" onclick="updateWinners()">Publish Winner Posts</button>
-            </div>
-        </div>
-    </div>
-
-    <script>
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", 
-            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" 
+    function uploadQuiz() {
+        const data = {
+            question: document.getElementById('qText').value,
+            correctAnswer: document.getElementById('correctAns').value,
+            answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value]
         };
-        firebase.initializeApp(firebaseConfig);
-        const database = firebase.database();
+        database.ref('Quizzes/Quizzes/' + window.nextQuizKey).set(data).then(() => {
+            alert("Quiz Saved!");
+            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
+        });
+    }
 
-        let adminDeviceId = localStorage.getItem('adminDeviceId') || 'br_'+Math.random().toString(36).substr(2,9);
-        localStorage.setItem('adminDeviceId', adminDeviceId);
+    function updateCompetition() {
+        database.ref('Competition').update({
+            StartDate: document.getElementById('compStartD').value,
+            StartTime: document.getElementById('compStartT').value,
+            EndDate: document.getElementById('compEndD').value,
+            EndTime: document.getElementById('compEndT').value
+        }).then(() => alert("Competition Updated!"));
+    }
 
-        window.onload = function() {
-            database.ref('AdminSessions/'+adminDeviceId).get().then(s => {
-                if(s.exists() && Date.now() - s.val().lastLogin < 86400000) showPanel();
-            });
-            fetchCurrentData();
-        };
-
-        function attemptLogin() {
-            const pass = document.getElementById('adminPass').value;
-            database.ref('AdminLiginKey/Password').get().then(s => {
-                if(s.val() === pass) {
-                    database.ref('AdminSessions/'+adminDeviceId).set({lastLogin: Date.now()}).then(showPanel);
-                } else { alert("Unauthorized Key"); }
-            });
-        }
-
-        function showPanel() {
-            document.getElementById('loginOverlay').style.display = 'none';
-            document.getElementById('adminPanel').style.display = 'block';
-            startDataListeners();
-        }
-
-        function openTab(evt, tabName) {
-            let i, tabcontent, tablinks;
-            tabcontent = document.getElementsByClassName("tab-content");
-            for (i = 0; i < tabcontent.length; i++) tabcontent[i].classList.remove("active");
-            tablinks = document.getElementsByClassName("tab-btn");
-            for (i = 0; i < tablinks.length; i++) tablinks[i].classList.remove("active");
-            document.getElementById(tabName).classList.add("active");
-            evt.currentTarget.classList.add("active");
-        }
-
-        function startDataListeners() {
-            // Stats
-            database.ref('User').on('value', snap => {
-                let uCount = 0, hScore = 0;
-                snap.forEach(c => { uCount++; let comp = c.val().TotalCompletedQuizCount || 0; if(comp > hScore) hScore = comp; });
-                document.getElementById('valUsers').innerText = uCount; 
-                document.getElementById('valHigh').innerText = hScore;
-            });
-
-            // Quiz Auto-increment
-            database.ref('Quizzes/Quizzes').on('value', snap => {
-                const total = snap.numChildren();
-                document.getElementById('valTotal').innerText = total;
-                if (snap.exists()) {
-                    let keys = Object.keys(snap.val()).sort();
-                    let lastKey = keys[keys.length - 1];
-                    let nextNum = parseInt(lastKey.replace('quiz', '')) + 1;
-                    let nextKey = "quiz" + nextNum.toString().padStart(5, '0');
-                    document.getElementById('autoNextKey').innerText = lastKey;
-                    document.getElementById('qKey').value = nextKey;
-                }
-            });
-        }
-
-        function fetchCurrentData() {
-            // Pre-fill existing competition data
-            database.ref('Competition').get().then(s => {
-                if(s.exists()){
-                    const d = s.val();
-                    document.getElementById('compStartD').value = d.StartDate;
-                    document.getElementById('compStartT').value = d.StartTime;
-                    document.getElementById('compEndD').value = d.EndDate;
-                    document.getElementById('compEndT').value = d.EndTime;
-                    document.getElementById('compStatus').value = d.Status;
-                }
-            });
-
-            // Pre-fill Media
-            database.ref('GuideVideos').get().then(s => {
-                if(s.exists()){
-                    const d = s.val();
-                    document.getElementById('vid1T').value = d.Video1Title;
-                    document.getElementById('vid1U').value = d.Video1;
-                    document.getElementById('vid2T').value = d.Video2Title;
-                    document.getElementById('vid2U').value = d.Video2;
-                }
-            });
-
-            // Pre-fill Winners
-            database.ref('WinnersPosts').get().then(s => {
-                if(s.exists()){
-                    const d = s.val();
-                    document.getElementById('winCap1').value = d.Caption1;
-                    document.getElementById('winPost1').value = d.Post1;
-                    document.getElementById('winCap2').value = d.Caption2;
-                    document.getElementById('winPost2').value = d.Post2;
-                }
-            });
-        }
-
-        function uploadQuiz() {
-            const key = document.getElementById('qKey').value;
-            const data = { 
-                question: document.getElementById('qText').value, 
-                correctAnswer: document.getElementById('correctAns').value, 
-                answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] 
-            };
-            database.ref('Quizzes/Quizzes/'+key).set(data).then(() => {
-                alert("Quiz Published!");
-                ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(id => document.getElementById(id).value = "");
-            });
-        }
-
-        function updateCompetition() {
-            const data = {
-                StartDate: document.getElementById('compStartD').value,
-                StartTime: document.getElementById('compStartT').value,
-                EndDate: document.getElementById('compEndD').value,
-                EndTime: document.getElementById('compEndT').value,
-                Status: document.getElementById('compStatus').value
-            };
-            database.ref('Competition').update(data).then(() => alert("Competition Schedule Synced!"));
-        }
-
-        function updateMedia() {
-            const data = {
-                Video1Title: document.getElementById('vid1T').value,
-                Video1: document.getElementById('vid1U').value,
-                Video2Title: document.getElementById('vid2T').value,
-                Video2: document.getElementById('vid2U').value
-            };
-            database.ref('GuideVideos').update(data).then(() => alert("Guides Updated!"));
-        }
-
-        function updateWinners() {
-            const data = {
-                Caption1: document.getElementById('winCap1').value,
-                Post1: document.getElementById('winPost1').value,
-                Caption2: document.getElementById('winCap2').value,
-                Post2: document.getElementById('winPost2').value
-            };
-            database.ref('WinnersPosts').update(data).then(() => alert("Winners List Updated!"));
-        }
-
-        function updateApp() {
-            const v = document.getElementById('vNum').value;
-            const s = document.getElementById('vStatus').value;
-            database.ref('Updates').update({ Avalable: parseInt(s), Version: parseInt(v) }).then(() => alert("Update Config Pushed!"));
-        }
-    </script>
+    function updateApp() {
+        database.ref('Updates').update({
+            Version: parseInt(document.getElementById('vNum').value),
+            Avalable: parseInt(document.getElementById('vStatus').value)
+        }).then(() => alert("App Settings Synced!"));
+    }
+</script>
 </body>
 </html>

@@ -175,7 +175,6 @@
     }
 
     function initDashboard() {
-        // Stats
         database.ref('User').on('value', snap => {
             let uCount = 0, hScore = 0;
             snap.forEach(c => { uCount++; let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
@@ -183,7 +182,6 @@
             document.getElementById('valHigh').innerText = hScore;
         });
 
-        // Quiz Sync
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
             let keys = Object.keys(snap.val() || {}).sort();
@@ -192,44 +190,88 @@
             document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
         });
 
-        // Load Dynamic Lists
-        loadDynamicList('GuideVideos', 'guideList', 'VideoTitle', 'VideoUrl');
-        loadDynamicList('WinnersPosts', 'winnersList', 'Caption', 'PostUrl');
+        loadDynamicList('GuideVideos', 'guideList');
+        loadDynamicList('WinnersPosts', 'winnersList');
+
+        database.ref('Competition').get().then(s => {
+            if(s.exists()){
+                const d = s.val();
+                document.getElementById('compStartD').value = d.StartDate || "";
+                document.getElementById('compStartT').value = d.StartTime || "";
+                document.getElementById('compEndD').value = d.EndDate || "";
+                document.getElementById('compEndT').value = d.EndTime || "";
+            }
+        });
     }
 
-    function loadDynamicList(node, containerId, labelKey, urlKey) {
+    function loadDynamicList(node, containerId) {
         database.ref(node).on('value', snap => {
             const container = document.getElementById(containerId);
             container.innerHTML = "";
-            snap.forEach(child => {
-                const data = child.val();
+            if(!snap.exists()) return;
+            const data = snap.val();
+            
+            // Logic for fixed-key structure (Video1, Video1Title, etc.)
+            let items = [];
+            if (node === 'GuideVideos') {
+                for (let i = 1; i <= 20; i++) {
+                    if (data['Video' + i]) items.push({ key: i, title: data['Video' + i + 'Title'], url: data['Video' + i] });
+                }
+            } else {
+                for (let i = 1; i <= 20; i++) {
+                    if (data['Post' + i]) items.push({ key: i, title: data['Caption' + i], url: data['Post' + i] });
+                }
+            }
+
+            items.forEach(item => {
                 container.innerHTML += `
                     <div class="list-item">
-                        <strong>${data[labelKey] || 'No Title'}</strong><br>
-                        <small style="color:#888">${(data[urlKey] || '').substring(0, 40)}...</small>
-                        <i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', '${child.key}')"></i>
+                        <strong>${item.title || 'No Title'}</strong><br>
+                        <small style="color:#888">${(item.url || '').substring(0, 40)}...</small>
+                        <i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', ${item.key})"></i>
                     </div>`;
             });
         });
     }
 
     function addItem(node, labelId, urlId) {
-        const label = document.getElementById(labelId).value;
+        const title = document.getElementById(labelId).value;
         const url = document.getElementById(urlId).value;
-        if(!label || !url) return alert("Fill both fields");
-        
-        const data = {};
-        data[node === 'GuideVideos' ? 'VideoTitle' : 'Caption'] = label;
-        data[node === 'GuideVideos' ? 'VideoUrl' : 'PostUrl'] = url;
+        if(!title || !url) return alert("Fill both fields");
 
-        database.ref(node).push(data).then(() => {
-            document.getElementById(labelId).value = "";
-            document.getElementById(urlId).value = "";
+        database.ref(node).once('value', snap => {
+            let data = snap.val() || {};
+            let nextIndex = 1;
+            // Find the first empty number slot (1, 2, 3...)
+            while (data[(node === 'GuideVideos' ? 'Video' : 'Post') + nextIndex]) { nextIndex++; }
+
+            let updates = {};
+            if (node === 'GuideVideos') {
+                updates['Video' + nextIndex] = url;
+                updates['Video' + nextIndex + 'Title'] = title;
+            } else {
+                updates['Post' + nextIndex] = url;
+                updates['Caption' + nextIndex] = title;
+            }
+
+            database.ref(node).update(updates).then(() => {
+                document.getElementById(labelId).value = "";
+                document.getElementById(urlId).value = "";
+            });
         });
     }
 
-    function deleteItem(node, key) {
-        if(confirm("Remove this item?")) database.ref(node + '/' + key).remove();
+    function deleteItem(node, index) {
+        if(!confirm("Remove this item?")) return;
+        let updates = {};
+        if (node === 'GuideVideos') {
+            updates['Video' + index] = null;
+            updates['Video' + index + 'Title'] = null;
+        } else {
+            updates['Post' + index] = null;
+            updates['Caption' + index] = null;
+        }
+        database.ref(node).update(updates);
     }
 
     function uploadQuiz() {

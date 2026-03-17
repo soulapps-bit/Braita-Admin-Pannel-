@@ -10,48 +10,44 @@
     <style>
         :root { --primary: #9C27B0; --bg: #f4f7f6; --text: #333; --white: #ffffff; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: var(--bg); margin: 0; color: var(--text); padding-bottom: 70px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
 
-        /* Professional Header */
         .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
         .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
 
-        /* Tab Content */
         .container { padding: 15px; max-width: 800px; margin: auto; }
         .tab-content { display: none; animation: fadeIn 0.3s ease; }
         .tab-content.active { display: block; }
 
-        /* Mobile Bottom Nav */
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.05); z-index: 1000; }
-        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; cursor: pointer; transition: 0.3s; }
-        .nav-item i { font-size: 20px; margin-bottom: 4px; }
-        .nav-item.active { color: var(--primary); }
+        /* Navigation Buttons Styling */
+        .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
+        .btn-nav { background: #424242; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; transition: 0.3s; }
+        .btn-nav:active { transform: scale(0.95); background: #000; }
+        .btn-purple { background: var(--primary); }
 
-        /* Card Style */
+        /* Card & UI elements */
         .card { background: var(--white); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; display: flex; justify-content: space-between; }
-
-        /* Dynamic List Items */
-        .list-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; }
-        .btn-delete { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: #ff5252; cursor: pointer; }
-
-        /* Form Inputs */
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
-        input:focus { border-color: var(--primary); outline: none; background: #fff; }
-
-        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; }
         
-        /* Stats Bubble */
         .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
         .stat-bubble { background: var(--primary); color: white; padding: 15px 5px; border-radius: 15px; text-align: center; }
         .stat-bubble span { display: block; font-size: 18px; font-weight: 800; }
         .stat-bubble small { font-size: 9px; opacity: 0.8; text-transform: uppercase; }
 
+        .input-group { margin-bottom: 15px; }
+        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
+        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
+        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
+
+        /* Bottom Nav */
+        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
+        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; transition: 0.3s; }
+        .nav-item.active { color: var(--primary); }
+        .nav-item i { font-size: 20px; margin-bottom: 4px; }
+
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
-        /* Login Screen */
+        /* Login Overlay */
         #loginOverlay { position: fixed; inset: 0; background: var(--primary); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; }
         .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; }
     </style>
@@ -67,11 +63,20 @@
     </div>
 </div>
 
-<div id="adminPanel">
+<div id="adminPanel" style="display:none;">
     <div class="header"><h1>BRAITA ADMIN HUB</h1></div>
 
     <div class="container">
         <div id="nav-dash" class="tab-content active">
+            <div class="nav-grid">
+                <button class="btn-nav btn-purple" onclick="location.href='LiveUserRanking.html'">
+                    <i class="fas fa-users"></i> Users List
+                </button>
+                <button class="btn-nav" onclick="location.href='ManageQuizzes.html'">
+                    <i class="fas fa-edit"></i> Edit Quizzes
+                </button>
+            </div>
+
             <div class="stats-row">
                 <div class="stat-bubble"><span id="valUsers">0</span><small>Users</small></div>
                 <div class="stat-bubble"><span id="valHigh">0</span><small>Record</small></div>
@@ -79,7 +84,7 @@
             </div>
             
             <div class="card">
-                <div class="card-title">Add New Quiz <small id="autoNextKey" style="color:#888"></small></div>
+                <div class="card-title">Quick Add Quiz <small id="autoNextKey" style="float:right; color:#888; font-size:11px;"></small></div>
                 <div class="input-group"><label>Question</label><input type="text" id="qText"></div>
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                     <div class="input-group"><label>Option 1</label><input type="text" id="ans1"></div>
@@ -87,56 +92,30 @@
                     <div class="input-group"><label>Option 3</label><input type="text" id="ans3"></div>
                     <div class="input-group"><label>Option 4</label><input type="text" id="ans4"></div>
                 </div>
-                <div class="input-group"><label>Correct Answer (Exact Text)</label><input type="text" id="correctAns"></div>
-                <button class="btn-save" onclick="uploadQuiz()">Publish Quiz</button>
+                <div class="input-group"><label>Correct Answer Text</label><input type="text" id="correctAns"></div>
+                <button class="btn-save" onclick="uploadQuiz()">Submit to Quizzes</button>
             </div>
         </div>
 
         <div id="nav-comp" class="tab-content">
             <div class="card">
-                <div class="card-title">Schedule & Timing</div>
+                <div class="card-title">Competition Timing</div>
                 <div class="input-group"><label>Start Date (DD-MM-YYYY)</label><input type="text" id="compStartD"></div>
                 <div class="input-group"><label>Start Time (HH:MM)</label><input type="text" id="compStartT"></div>
                 <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
                 <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
-                <button class="btn-save" onclick="updateCompetition()">Update Timing</button>
-            </div>
-            
-            <div class="card">
-                <div class="card-title">App Update Force</div>
-                <div class="input-group"><label>App Version</label><input type="number" id="vNum"></div>
-                <select id="vStatus" style="margin-bottom: 10px;">
-                    <option value="1">Available</option>
-                    <option value="0">Not Available</option>
-                </select>
-                <button class="btn-save" style="background:#444" onclick="updateApp()">Sync Version</button>
+                <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
             </div>
         </div>
 
         <div id="nav-media" class="tab-content">
-            <div class="card">
-                <div class="card-title">Add Guide Video</div>
-                <input type="text" id="newVidTitle" placeholder="Video Title" style="margin-bottom:10px;">
-                <input type="text" id="newVidUrl" placeholder="Video URL (FB/YT)">
-                <button class="btn-save" onclick="addItem('GuideVideos', 'newVidTitle', 'newVidUrl')">Add to List</button>
-            </div>
-            <div class="card">
-                <div class="card-title">Active Guides</div>
-                <div id="guideList"></div>
-            </div>
+            <div class="card"><div class="card-title">Guide Videos</div><input type="text" id="vT" placeholder="Title"><input type="text" id="vU" placeholder="URL" style="margin-top:10px;"><button class="btn-save" onclick="addItem('GuideVideos','vT','vU')">Add Video</button></div>
+            <div id="guideList"></div>
         </div>
 
         <div id="nav-winners" class="tab-content">
-            <div class="card">
-                <div class="card-title">Add Winner Post</div>
-                <input type="text" id="newWinCap" placeholder="Winner Name/Caption" style="margin-bottom:10px;">
-                <input type="text" id="newWinUrl" placeholder="Facebook Post URL">
-                <button class="btn-save" onclick="addItem('WinnersPosts', 'newWinCap', 'newWinUrl')">Add Post</button>
-            </div>
-            <div class="card">
-                <div class="card-title">Hall of Fame</div>
-                <div id="winnersList"></div>
-            </div>
+            <div class="card"><div class="card-title">Winner Posts</div><input type="text" id="wT" placeholder="Caption"><input type="text" id="wU" placeholder="Post URL" style="margin-top:10px;"><button class="btn-save" onclick="addItem('WinnersPosts','wT','wU')">Add Post</button></div>
+            <div id="winnersList"></div>
         </div>
     </div>
 
@@ -149,10 +128,7 @@
 </div>
 
 <script>
-    const firebaseConfig = { 
-        apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", 
-        databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" 
-    };
+    const firebaseConfig = { apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" };
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
@@ -161,8 +137,9 @@
         database.ref('AdminLiginKey/Password').get().then(s => {
             if(s.val() === pass) {
                 document.getElementById('loginOverlay').style.display = 'none';
+                document.getElementById('adminPanel').style.display = 'block';
                 initDashboard();
-            } else { alert("Invalid Key"); }
+            } else { alert("Key Incorrect"); }
         });
     }
 
@@ -171,66 +148,36 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
-        window.scrollTo(0,0);
     }
 
     function initDashboard() {
-        // Real-time Stats
+        // Stats
         database.ref('User').on('value', snap => {
-            let count = 0, high = 0;
-            snap.forEach(u => { count++; let pts = u.val().MyPoints || 0; if(pts > high) high = pts; });
-            document.getElementById('valUsers').innerText = count;
-            document.getElementById('valHigh').innerText = high;
+            let uCount = 0, hScore = 0;
+            snap.forEach(c => { uCount++; let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
+            document.getElementById('valUsers').innerText = uCount; 
+            document.getElementById('valHigh').innerText = hScore;
         });
 
-        // Quiz Auto-key
+        // Quiz Sync
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
             let keys = Object.keys(snap.val() || {}).sort();
             let lastKey = keys.length ? keys[keys.length - 1] : "quiz00000";
-            let nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
-            document.getElementById('autoNextKey').innerText = "Target: " + nextKey;
-            window.nextQuizKey = nextKey;
+            window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
+            document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
         });
 
-        // Load Lists
-        loadDynamicList('GuideVideos', 'guideList', 'VideoTitle', 'VideoUrl');
-        loadDynamicList('WinnersPosts', 'winnersList', 'Caption', 'PostUrl');
-    }
-
-    function loadDynamicList(node, containerId, labelKey, urlKey) {
-        database.ref(node).on('value', snap => {
-            const container = document.getElementById(containerId);
-            container.innerHTML = "";
-            snap.forEach(child => {
-                const data = child.val();
-                container.innerHTML += `
-                    <div class="list-item">
-                        <strong>${data[labelKey] || 'No Title'}</strong><br>
-                        <small style="color:#888">${(data[urlKey] || '').substring(0, 30)}...</small>
-                        <i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', '${child.key}')"></i>
-                    </div>`;
-            });
+        // Existing Schedule Sync
+        database.ref('Competition').get().then(s => {
+            if(s.exists()){
+                const d = s.val();
+                document.getElementById('compStartD').value = d.StartDate || "";
+                document.getElementById('compStartT').value = d.StartTime || "";
+                document.getElementById('compEndD').value = d.EndDate || "";
+                document.getElementById('compEndT').value = d.EndTime || "";
+            }
         });
-    }
-
-    function addItem(node, labelId, urlId) {
-        const label = document.getElementById(labelId).value;
-        const url = document.getElementById(urlId).value;
-        if(!label || !url) return alert("Fill both fields");
-        
-        const data = {};
-        data[node === 'GuideVideos' ? 'VideoTitle' : 'Caption'] = label;
-        data[node === 'GuideVideos' ? 'VideoUrl' : 'PostUrl'] = url;
-
-        database.ref(node).push(data).then(() => {
-            document.getElementById(labelId).value = "";
-            document.getElementById(urlId).value = "";
-        });
-    }
-
-    function deleteItem(node, key) {
-        if(confirm("Remove this item?")) database.ref(node + '/' + key).remove();
     }
 
     function uploadQuiz() {
@@ -239,26 +186,21 @@
             correctAnswer: document.getElementById('correctAns').value,
             answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value]
         };
-        database.ref('Quizzes/Quizzes/' + window.nextQuizKey).set(data).then(() => {
-            alert("Quiz Saved!");
+        database.ref('Quizzes/Quizzes/' + window.nextKey).set(data).then(() => {
+            alert("Success!");
             ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
         });
     }
 
     function updateCompetition() {
-        database.ref('Competition').update({
+        const data = {
             StartDate: document.getElementById('compStartD').value,
             StartTime: document.getElementById('compStartT').value,
             EndDate: document.getElementById('compEndD').value,
-            EndTime: document.getElementById('compEndT').value
-        }).then(() => alert("Competition Updated!"));
-    }
-
-    function updateApp() {
-        database.ref('Updates').update({
-            Version: parseInt(document.getElementById('vNum').value),
-            Avalable: parseInt(document.getElementById('vStatus').value)
-        }).then(() => alert("App Settings Synced!"));
+            EndTime: document.getElementById('compEndT').value,
+            Status: "Now"
+        };
+        database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
     }
 </script>
 </body>

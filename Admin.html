@@ -37,7 +37,7 @@
 
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
-        input { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
+        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
         .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
 
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
@@ -66,6 +66,7 @@
     <div class="header"><h1>BRAITA ADMIN HUB</h1></div>
 
     <div class="container">
+        <!-- HOME TAB -->
         <div id="nav-dash" class="tab-content active">
             <div class="nav-grid">
                 <button class="btn-nav btn-purple" onclick="location.href='LiveUserRanking.html'">
@@ -96,6 +97,7 @@
             </div>
         </div>
 
+        <!-- COMPETITION TAB -->
         <div id="nav-comp" class="tab-content">
             <div class="card">
                 <div class="card-title">Competition Timing</div>
@@ -105,8 +107,23 @@
                 <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
                 <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
             </div>
+
+            <!-- ADDED: App Update Section -->
+            <div class="card">
+                <div class="card-title">App Update Control</div>
+                <div class="input-group"><label>Version Number</label><input type="number" id="vNum"></div>
+                <div class="input-group">
+                    <label>Update Availability</label>
+                    <select id="vStatus">
+                        <option value="1">Available (Enable Update)</option>
+                        <option value="0">Not Available (Disable Update)</option>
+                    </select>
+                </div>
+                <button class="btn-save" style="background:#424242" onclick="updateApp()">Sync App Version</button>
+            </div>
         </div>
 
+        <!-- GUIDES TAB -->
         <div id="nav-media" class="tab-content">
             <div class="card">
                 <div class="card-title">Add Guide Video</div>
@@ -117,6 +134,7 @@
             <div id="guideList"></div>
         </div>
 
+        <!-- WINNERS TAB -->
         <div id="nav-winners" class="tab-content">
             <div class="card">
                 <div class="card-title">Add Winner Post</div>
@@ -193,6 +211,7 @@
         loadDynamicList('GuideVideos', 'guideList');
         loadDynamicList('WinnersPosts', 'winnersList');
 
+        // Fetch Competition Data
         database.ref('Competition').get().then(s => {
             if(s.exists()){
                 const d = s.val();
@@ -200,6 +219,14 @@
                 document.getElementById('compStartT').value = d.StartTime || "";
                 document.getElementById('compEndD').value = d.EndDate || "";
                 document.getElementById('compEndT').value = d.EndTime || "";
+            }
+        });
+
+        // Fetch Current Update Status
+        database.ref('Updates').get().then(s => {
+            if(s.exists()){
+                document.getElementById('vNum').value = s.val().Version || 0;
+                document.getElementById('vStatus').value = s.val().Avalable || 0;
             }
         });
     }
@@ -211,7 +238,6 @@
             if(!snap.exists()) return;
             const data = snap.val();
             
-            // Logic for fixed-key structure (Video1, Video1Title, etc.)
             let items = [];
             if (node === 'GuideVideos') {
                 for (let i = 1; i <= 20; i++) {
@@ -242,7 +268,6 @@
         database.ref(node).once('value', snap => {
             let data = snap.val() || {};
             let nextIndex = 1;
-            // Find the first empty number slot (1, 2, 3...)
             while (data[(node === 'GuideVideos' ? 'Video' : 'Post') + nextIndex]) { nextIndex++; }
 
             let updates = {};
@@ -295,6 +320,16 @@
             Status: "Now"
         };
         database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
+    }
+
+    // FUNCTION FOR APP UPDATE
+    function updateApp() {
+        const v = document.getElementById('vNum').value;
+        const s = document.getElementById('vStatus').value;
+        database.ref('Updates').update({
+            Avalable: parseInt(s),
+            Version: parseInt(v)
+        }).then(() => alert("App Version Settings Updated!"));
     }
 </script>
 </body>

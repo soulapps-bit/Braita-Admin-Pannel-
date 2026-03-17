@@ -106,11 +106,17 @@
                 <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
                 <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
                 <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
-                
-                <!-- NEW: Reset Points Button -->
                 <button class="btn-save" style="background:#d32f2f; margin-top:20px;" onclick="resetCompetitionPoints()">
                     <i class="fas fa-sync-alt"></i> Reset All Competition Points to 0
                 </button>
+            </div>
+
+            <!-- NEW: Notification Change Section -->
+            <div class="card">
+                <div class="card-title">In-App Notifications</div>
+                <div class="input-group"><label>Notification Topic (Heading)</label><input type="text" id="notifTopic"></div>
+                <div class="input-group"><label>Notification Message</label><input type="text" id="notifMessage"></div>
+                <button class="btn-save" style="background:#FF9800" onclick="updateNotifications()">Sync Notifications</button>
             </div>
 
             <div class="card">
@@ -231,6 +237,14 @@
                 document.getElementById('vStatus').value = s.val().Avalable || 0;
             }
         });
+
+        // Load current notifications
+        database.ref('Notifications').get().then(s => {
+            if(s.exists()){
+                document.getElementById('notifTopic').value = s.val().Topic || "";
+                document.getElementById('notifMessage').value = s.val().Message || "";
+            }
+        });
     }
 
     function loadDynamicList(node, containerId) {
@@ -333,7 +347,6 @@
         }).then(() => alert("App Version Settings Updated!"));
     }
 
-    // NEW: Function to reset competition points for all users
     function resetCompetitionPoints() {
         if (!confirm("WARNING: This will set ALL users' CompetitionPoints to 0. This cannot be undone. Do you want to proceed?")) {
             return;
@@ -347,11 +360,9 @@
 
             let updates = {};
             snap.forEach(userSnap => {
-                // Prepare update for each user node
                 updates[userSnap.key + '/CompetitionPoints'] = 0;
             });
 
-            // Apply all updates at once
             database.ref('User').update(updates).then(() => {
                 alert("All Competition Points have been reset to 0 successfully!");
             }).catch(err => {
@@ -359,6 +370,18 @@
                 alert("Error resetting points. Check console.");
             });
         });
+    }
+
+    // NEW: Function to update in-app notifications
+    function updateNotifications() {
+        const topic = document.getElementById('notifTopic').value;
+        const msg = document.getElementById('notifMessage').value;
+        if(!topic || !msg) return alert("Topic and Message cannot be empty");
+
+        database.ref('Notifications').update({
+            Topic: topic,
+            Message: msg
+        }).then(() => alert("In-App Notification Updated!"));
     }
 </script>
 </body>

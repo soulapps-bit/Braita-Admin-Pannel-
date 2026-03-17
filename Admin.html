@@ -106,9 +106,13 @@
                 <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
                 <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
                 <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
+                
+                <!-- NEW: Reset Points Button -->
+                <button class="btn-save" style="background:#d32f2f; margin-top:20px;" onclick="resetCompetitionPoints()">
+                    <i class="fas fa-sync-alt"></i> Reset All Competition Points to 0
+                </button>
             </div>
 
-            <!-- ADDED: App Update Section -->
             <div class="card">
                 <div class="card-title">App Update Control</div>
                 <div class="input-group"><label>Version Number</label><input type="number" id="vNum"></div>
@@ -211,7 +215,6 @@
         loadDynamicList('GuideVideos', 'guideList');
         loadDynamicList('WinnersPosts', 'winnersList');
 
-        // Fetch Competition Data
         database.ref('Competition').get().then(s => {
             if(s.exists()){
                 const d = s.val();
@@ -222,7 +225,6 @@
             }
         });
 
-        // Fetch Current Update Status
         database.ref('Updates').get().then(s => {
             if(s.exists()){
                 document.getElementById('vNum').value = s.val().Version || 0;
@@ -322,7 +324,6 @@
         database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
     }
 
-    // FUNCTION FOR APP UPDATE
     function updateApp() {
         const v = document.getElementById('vNum').value;
         const s = document.getElementById('vStatus').value;
@@ -330,6 +331,34 @@
             Avalable: parseInt(s),
             Version: parseInt(v)
         }).then(() => alert("App Version Settings Updated!"));
+    }
+
+    // NEW: Function to reset competition points for all users
+    function resetCompetitionPoints() {
+        if (!confirm("WARNING: This will set ALL users' CompetitionPoints to 0. This cannot be undone. Do you want to proceed?")) {
+            return;
+        }
+
+        database.ref('User').once('value').then(snap => {
+            if (!snap.exists()) {
+                alert("No users found.");
+                return;
+            }
+
+            let updates = {};
+            snap.forEach(userSnap => {
+                // Prepare update for each user node
+                updates[userSnap.key + '/CompetitionPoints'] = 0;
+            });
+
+            // Apply all updates at once
+            database.ref('User').update(updates).then(() => {
+                alert("All Competition Points have been reset to 0 successfully!");
+            }).catch(err => {
+                console.error(err);
+                alert("Error resetting points. Check console.");
+            });
+        });
     }
 </script>
 </body>

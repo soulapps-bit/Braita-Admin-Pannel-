@@ -9,7 +9,7 @@
     <style>
         :root { --primary: #9C27B0; --outer-bg: #212121; --accent: #FFC107; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--outer-bg); margin: 0; padding: 10px; display: flex; justify-content: center; }
-        .frame { background: white; width: 100%; max-width: 1000px; min-height: 90vh; border-radius: 8px; overflow: hidden; padding-bottom: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        .frame { background: white; width: 100%; max-width: 1100px; min-height: 90vh; border-radius: 8px; overflow: hidden; padding-bottom: 30px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
         .banner { background: var(--primary); color: white; padding: 25px; text-align: center; font-size: 22px; position: relative; font-weight: bold; }
         .btn-back { position: absolute; left: 15px; top: 50%; transform: translateY(-50%); background: #424242; color: white; border: none; padding: 8px 18px; border-radius: 4px; cursor: pointer; font-size: 12px; transition: 0.3s; }
         .btn-back:hover { background: #000; }
@@ -22,7 +22,7 @@
         .filter-select { padding: 10px 15px; border-radius: 25px; border: 1.5px solid var(--primary); color: var(--primary); font-weight: bold; cursor: pointer; outline: none; }
 
         .table-wrap { overflow-x: auto; padding: 0 5%; }
-        table { width: 100%; border-collapse: collapse; min-width: 800px; }
+        table { width: 100%; border-collapse: collapse; min-width: 900px; }
         th { background: #f4f4f4; color: #444; padding: 15px; font-size: 12px; text-transform: uppercase; border-bottom: 2px solid var(--primary); }
         td { padding: 15px; text-align: center; font-size: 14px; color: #333; border-bottom: 1px solid #EEE; }
         .user-tag { background: #E1BEE7; color: #7B1FA2; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-weight: bold; font-size: 12px; }
@@ -46,6 +46,8 @@
                 <option value="MyPoints">All Time Points</option>
                 <option value="CompetitionPoints">Current Competition</option>
                 <option value="TotalCompletedQuizCount">Quizzes Completed</option>
+                <option value="JoiningDate">Joining Date (Newest)</option>
+                <option value="ActiveDays">Active Days</option>
             </select>
         </div>
 
@@ -56,6 +58,8 @@
                         <th>Rank</th>
                         <th>UserTag</th>
                         <th>User Name</th>
+                        <th>Joined</th>
+                        <th>Active</th>
                         <th>Lifetime Pts</th>
                         <th>Comp. Pts</th>
                         <th>Correct</th>
@@ -84,22 +88,43 @@
             database.ref('User').on('value', snap => {
                 let users = [];
                 snap.forEach(child => {
-                    users.push({ id: child.key, ...child.val() });
+                    let data = child.val();
+                    
+                    // Calculate Active Days based on QuizProgress nodes
+                    let activeDaysCount = 0;
+                    if (data.QuizProgress && data.QuizProgress.QuizProgress) {
+                        activeDaysCount = Object.keys(data.QuizProgress.QuizProgress).length;
+                    }
+
+                    users.push({ 
+                        id: child.key, 
+                        ...data,
+                        ActiveDays: activeDaysCount 
+                    });
                 });
 
-                // Sort based on selected filter (Descending)
-                users.sort((a, b) => (b[sortBy] || 0) - (a[sortBy] || 0));
+                // Sorting Logic
+                users.sort((a, b) => {
+                    if (sortBy === "JoiningDate") {
+                        // Sort by Date (latest first)
+                        return new Date(b.JoiningDate || 0) - new Date(a.JoiningDate || 0);
+                    } else {
+                        // Sort by Numbers (descending)
+                        return (b[sortBy] || 0) - (a[sortBy] || 0);
+                    }
+                });
 
                 body.innerHTML = "";
                 users.forEach((u, index) => {
                     const rank = index + 1;
-                    const rowClass = rank <= 3 ? 'style="background:#FFF9C4"' : ''; // Highlight top 3
                     
                     body.innerHTML += `
                         <tr class="user-row" ${rank <= 1 ? 'style="border-left: 5px solid gold;"' : ''}>
                             <td style="font-weight:bold">#${rank.toString().padLeft(2, '0')}</td>
                             <td><span class="user-tag">${u.UserTag || 'N/A'}</span></td>
                             <td style="text-align:left"><strong>${u.UserName || 'Visitor'}</strong></td>
+                            <td style="font-size:12px">${u.JoiningDate || 'N/A'}</td>
+                            <td style="font-weight:bold">${u.ActiveDays} Days</td>
                             <td class="points-cell">${u.MyPoints || 0}</td>
                             <td class="comp-cell">${u.CompetitionPoints || 0}</td>
                             <td style="color:green">${u.TotalCorrectAnsweredQuizCount || 0}</td>
@@ -115,12 +140,10 @@
             const input = document.getElementById('userSearch').value.toLowerCase();
             const rows = document.getElementsByClassName('user-row');
             for(let r of rows) {
-                // Filters by both Name and UserTag
                 r.style.display = r.innerText.toLowerCase().includes(input) ? "" : "none";
             }
         }
 
-        // Helper for rank padding
         if (!String.prototype.padLeft) {
             String.prototype.padLeft = function(n, str) {
                 return Array(n - String(this).length + 1).join(str || '0') + this;

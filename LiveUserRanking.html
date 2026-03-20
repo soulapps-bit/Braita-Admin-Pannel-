@@ -46,7 +46,7 @@
                 <option value="MyPoints">All Time Points</option>
                 <option value="CompetitionPoints">Current Competition</option>
                 <option value="TotalCompletedQuizCount">Quizzes Completed</option>
-                <option value="JoiningDate">Joining Date (Newest)</option>
+                <option value="JoiningDateTimestamp">Joining Date (Newest)</option>
                 <option value="ActiveDays">Active Days</option>
             </select>
         </div>
@@ -81,6 +81,13 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
+        // Helper function to convert DD-MM-YYYY string to Date object
+        function parseDate(dateStr) {
+            const parts = dateStr.split('-');
+            if(parts.length !== 3) return null;
+            return new Date(parts[2], parts[1] - 1, parts[0]);
+        }
+
         function loadUsers() {
             const sortBy = document.getElementById('sortFilter').value;
             const body = document.getElementById('userList');
@@ -90,28 +97,40 @@
                 snap.forEach(child => {
                     let data = child.val();
                     
-                    // Calculate Active Days based on QuizProgress nodes
                     let activeDaysCount = 0;
+                    let joiningDateStr = "N/A";
+                    let joiningDateTimestamp = 0;
+
+                    // Extract dates from QuizProgress
                     if (data.QuizProgress && data.QuizProgress.QuizProgress) {
-                        activeDaysCount = Object.keys(data.QuizProgress.QuizProgress).length;
+                        const dateKeys = Object.keys(data.QuizProgress.QuizProgress);
+                        activeDaysCount = dateKeys.length;
+
+                        // Convert date strings to sortable objects
+                        const dateObjects = dateKeys
+                            .map(d => ({ original: d, date: parseDate(d) }))
+                            .filter(d => d.date !== null)
+                            .sort((a, b) => a.date - b.date); // Earliest first
+
+                        if (dateObjects.length > 0) {
+                            joiningDateStr = dateObjects[0].original; // Earliest date as Joining Date
+                            joiningDateTimestamp = dateObjects[0].date.getTime();
+                        }
                     }
 
                     users.push({ 
                         id: child.key, 
                         ...data,
-                        ActiveDays: activeDaysCount 
+                        ActiveDays: activeDaysCount,
+                        JoiningDateDisplay: joiningDateStr,
+                        JoiningDateTimestamp: joiningDateTimestamp
                     });
                 });
 
                 // Sorting Logic
                 users.sort((a, b) => {
-                    if (sortBy === "JoiningDate") {
-                        // Sort by Date (latest first)
-                        return new Date(b.JoiningDate || 0) - new Date(a.JoiningDate || 0);
-                    } else {
-                        // Sort by Numbers (descending)
-                        return (b[sortBy] || 0) - (a[sortBy] || 0);
-                    }
+                    // Descending sort for everything
+                    return (b[sortBy] || 0) - (a[sortBy] || 0);
                 });
 
                 body.innerHTML = "";
@@ -123,7 +142,7 @@
                             <td style="font-weight:bold">#${rank.toString().padLeft(2, '0')}</td>
                             <td><span class="user-tag">${u.UserTag || 'N/A'}</span></td>
                             <td style="text-align:left"><strong>${u.UserName || 'Visitor'}</strong></td>
-                            <td style="font-size:12px">${u.JoiningDate || 'N/A'}</td>
+                            <td style="font-size:12px">${u.JoiningDateDisplay}</td>
                             <td style="font-weight:bold">${u.ActiveDays} Days</td>
                             <td class="points-cell">${u.MyPoints || 0}</td>
                             <td class="comp-cell">${u.CompetitionPoints || 0}</td>

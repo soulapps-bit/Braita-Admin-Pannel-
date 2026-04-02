@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="si">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -37,7 +37,7 @@
 
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
-        input, select { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
+        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
         .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
 
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
@@ -66,7 +66,6 @@
     <div class="header"><h1>BRAITA ADMIN HUB</h1></div>
 
     <div class="container">
-        <!-- HOME TAB -->
         <div id="nav-dash" class="tab-content active">
             <div class="nav-grid">
                 <button class="btn-nav btn-purple" onclick="location.href='LiveUserRanking.html'">
@@ -93,11 +92,22 @@
                     <div class="input-group"><label>Option 4</label><input type="text" id="ans4"></div>
                 </div>
                 <div class="input-group"><label>Correct Answer Text</label><input type="text" id="correctAns"></div>
-                <button class="btn-save" onclick="uploadQuiz()">Submit to Quizzes</button>
+                <button class="btn-save" onclick="uploadQuiz()">Submit Single Quiz</button>
+            </div>
+
+            <div class="card" style="border: 2px dashed var(--primary); background: #fdf7ff;">
+                <div class="card-title">Bulk Upload Quizzes (JSON)</div>
+                <div class="input-group">
+                    <label>Paste JSON Data (IDs & Details Only)</label>
+                    <textarea id="bulkJsonInput" rows="6" style="font-family: monospace; font-size: 12px;" placeholder='{"quiz01071": {"question": "Example?", "answers": ["A", "B", "C", "D"], "correctAnswer": "A"}}'></textarea>
+                </div>
+                <button class="btn-save" style="background: #673AB7;" onclick="uploadBulkQuizzes()">
+                    <i class="fas fa-upload"></i> Bulk Import to Firebase
+                </button>
+                <p id="bulkStatus" style="font-size:11px; margin-top:10px; color:#666;"></p>
             </div>
         </div>
 
-        <!-- COMPETITION TAB -->
         <div id="nav-comp" class="tab-content">
             <div class="card">
                 <div class="card-title">Competition Timing</div>
@@ -111,7 +121,6 @@
                 </button>
             </div>
 
-            <!-- NEW: Notification Change Section -->
             <div class="card">
                 <div class="card-title">In-App Notifications</div>
                 <div class="input-group"><label>Notification Topic (Heading)</label><input type="text" id="notifTopic"></div>
@@ -133,7 +142,6 @@
             </div>
         </div>
 
-        <!-- GUIDES TAB -->
         <div id="nav-media" class="tab-content">
             <div class="card">
                 <div class="card-title">Add Guide Video</div>
@@ -144,7 +152,6 @@
             <div id="guideList"></div>
         </div>
 
-        <!-- WINNERS TAB -->
         <div id="nav-winners" class="tab-content">
             <div class="card">
                 <div class="card-title">Add Winner Post</div>
@@ -213,7 +220,12 @@
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
             let keys = Object.keys(snap.val() || {}).sort();
-            let lastKey = keys.length ? keys[keys.length - 1] : "quiz00000";
+            let lastKey = "quiz00000";
+            if(keys.length > 0) {
+                // Find the highest numeric ID correctly
+                const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
+                lastKey = "quiz" + maxNum.toString().padStart(5,'0');
+            }
             window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
             document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
         });
@@ -238,7 +250,6 @@
             }
         });
 
-        // Load current notifications
         database.ref('Notifications').get().then(s => {
             if(s.exists()){
                 document.getElementById('notifTopic').value = s.val().Topic || "";
@@ -253,16 +264,12 @@
             container.innerHTML = "";
             if(!snap.exists()) return;
             const data = snap.val();
-            
             let items = [];
-            if (node === 'GuideVideos') {
-                for (let i = 1; i <= 20; i++) {
-                    if (data['Video' + i]) items.push({ key: i, title: data['Video' + i + 'Title'], url: data['Video' + i] });
-                }
-            } else {
-                for (let i = 1; i <= 20; i++) {
-                    if (data['Post' + i]) items.push({ key: i, title: data['Caption' + i], url: data['Post' + i] });
-                }
+            for (let i = 1; i <= 20; i++) {
+                if (node === 'GuideVideos' && data['Video' + i]) 
+                    items.push({ key: i, title: data['Video' + i + 'Title'], url: data['Video' + i] });
+                else if (node === 'WinnersPosts' && data['Post' + i]) 
+                    items.push({ key: i, title: data['Caption' + i], url: data['Post' + i] });
             }
 
             items.forEach(item => {
@@ -285,7 +292,6 @@
             let data = snap.val() || {};
             let nextIndex = 1;
             while (data[(node === 'GuideVideos' ? 'Video' : 'Post') + nextIndex]) { nextIndex++; }
-
             let updates = {};
             if (node === 'GuideVideos') {
                 updates['Video' + nextIndex] = url;
@@ -294,7 +300,6 @@
                 updates['Post' + nextIndex] = url;
                 updates['Caption' + nextIndex] = title;
             }
-
             database.ref(node).update(updates).then(() => {
                 document.getElementById(labelId).value = "";
                 document.getElementById(urlId).value = "";
@@ -306,25 +311,62 @@
         if(!confirm("Remove this item?")) return;
         let updates = {};
         if (node === 'GuideVideos') {
-            updates['Video' + index] = null;
-            updates['Video' + index + 'Title'] = null;
+            updates['Video' + index] = null; updates['Video' + index + 'Title'] = null;
         } else {
-            updates['Post' + index] = null;
-            updates['Caption' + index] = null;
+            updates['Post' + index] = null; updates['Caption' + index] = null;
         }
         database.ref(node).update(updates);
     }
 
+    // SINGLE QUIZ UPLOAD
     function uploadQuiz() {
+        const q = document.getElementById('qText').value;
+        const a1 = document.getElementById('ans1').value;
+        const cA = document.getElementById('correctAns').value;
+        if(!q || !a1 || !cA) return alert("Please fill important fields!");
+
         const data = {
-            question: document.getElementById('qText').value,
-            correctAnswer: document.getElementById('correctAns').value,
-            answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value]
+            question: q,
+            correctAnswer: cA,
+            answers: [a1, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value]
         };
         database.ref('Quizzes/Quizzes/' + window.nextKey).set(data).then(() => {
             alert("Success!");
             ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
         });
+    }
+
+    // BULK QUIZ UPLOAD (NEW FUNCTION)
+    function uploadBulkQuizzes() {
+        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
+        const statusLabel = document.getElementById('bulkStatus');
+
+        if (!jsonInput) return alert("කරුණාකර JSON දත්ත ඇතුළත් කරන්න.");
+
+        try {
+            const quizzesObject = JSON.parse(jsonInput);
+            const count = Object.keys(quizzesObject).length;
+            
+            if (!confirm(`ප්‍රශ්න ${count} ක් එකවර Upload කිරීමට අවශ්‍යද?`)) return;
+
+            statusLabel.innerText = "Uploading... Please wait...";
+            statusLabel.style.color = "blue";
+
+            database.ref('Quizzes/Quizzes').update(quizzesObject).then(() => {
+                alert("සාර්ථකයි! ප්‍රශ්න " + count + " ක් ඇතුළත් කරන ලදී.");
+                document.getElementById('bulkJsonInput').value = "";
+                statusLabel.innerText = "Last Status: Success (" + count + " added)";
+                statusLabel.style.color = "green";
+            }).catch(err => {
+                alert("Error: " + err.message);
+                statusLabel.style.color = "red";
+            });
+
+        } catch (e) {
+            alert("JSON Format එක වැරදියි!");
+            statusLabel.innerText = "Error: Invalid JSON";
+            statusLabel.style.color = "red";
+        }
     }
 
     function updateCompetition() {
@@ -339,49 +381,26 @@
     }
 
     function updateApp() {
-        const v = document.getElementById('vNum').value;
-        const s = document.getElementById('vStatus').value;
         database.ref('Updates').update({
-            Avalable: parseInt(s),
-            Version: parseInt(v)
+            Avalable: parseInt(document.getElementById('vStatus').value),
+            Version: parseInt(document.getElementById('vNum').value)
         }).then(() => alert("App Version Settings Updated!"));
     }
 
     function resetCompetitionPoints() {
-        if (!confirm("WARNING: This will set ALL users' CompetitionPoints to 0. This cannot be undone. Do you want to proceed?")) {
-            return;
-        }
-
+        if (!confirm("WARNING: This will set ALL users' CompetitionPoints to 0! Proceed?")) return;
         database.ref('User').once('value').then(snap => {
-            if (!snap.exists()) {
-                alert("No users found.");
-                return;
-            }
-
             let updates = {};
-            snap.forEach(userSnap => {
-                updates[userSnap.key + '/CompetitionPoints'] = 0;
-            });
-
-            database.ref('User').update(updates).then(() => {
-                alert("All Competition Points have been reset to 0 successfully!");
-            }).catch(err => {
-                console.error(err);
-                alert("Error resetting points. Check console.");
-            });
+            snap.forEach(userSnap => { updates[userSnap.key + '/CompetitionPoints'] = 0; });
+            database.ref('User').update(updates).then(() => alert("All points reset!"));
         });
     }
 
-    // NEW: Function to update in-app notifications
     function updateNotifications() {
         const topic = document.getElementById('notifTopic').value;
         const msg = document.getElementById('notifMessage').value;
-        if(!topic || !msg) return alert("Topic and Message cannot be empty");
-
-        database.ref('Notifications').update({
-            Topic: topic,
-            Message: msg
-        }).then(() => alert("In-App Notification Updated!"));
+        if(!topic || !msg) return alert("Fields cannot be empty");
+        database.ref('Notifications').update({ Topic: topic, Message: msg }).then(() => alert("Notification Updated!"));
     }
 </script>
 </body>

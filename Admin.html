@@ -8,7 +8,7 @@
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        :root { --primary: #9C27B0; --bg: #f4f7f6; --text: #333; --white: #ffffff; }
+        :root { --primary: #9C27B0; --bg: #f4f7f6; --text: #333; --white: #ffffff; --orange: #FF9800; --green: #4CAF50; }
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
 
@@ -41,9 +41,16 @@
         .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
 
         .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
-        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; transition: 0.3s; }
+        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; transition: 0.3s; width: 20%; cursor: pointer;}
         .nav-item.active { color: var(--primary); }
         .nav-item i { font-size: 20px; margin-bottom: 4px; }
+
+        /* Order Styling */
+        .order-card { border: 1px solid #eee; padding: 12px; border-radius: 12px; margin-bottom: 10px; background: #fff; border-left: 5px solid var(--orange); }
+        .status-badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: bold; color: white; }
+        .s-approved { background: var(--orange); }
+        .s-delivery { background: var(--primary); }
+        .s-done { background: var(--green); }
 
         @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
 
@@ -94,18 +101,6 @@
                 <div class="input-group"><label>Correct Answer Text</label><input type="text" id="correctAns"></div>
                 <button class="btn-save" onclick="uploadQuiz()">Submit Single Quiz</button>
             </div>
-
-            <div class="card" style="border: 2px dashed var(--primary); background: #fdf7ff;">
-                <div class="card-title">Bulk Upload Quizzes (JSON)</div>
-                <div class="input-group">
-                    <label>Paste JSON Data (IDs & Details Only)</label>
-                    <textarea id="bulkJsonInput" rows="6" style="font-family: monospace; font-size: 12px;" placeholder='{"quiz01071": {"question": "Example?", "answers": ["A", "B", "C", "D"], "correctAnswer": "A"}}'></textarea>
-                </div>
-                <button class="btn-save" style="background: #673AB7;" onclick="uploadBulkQuizzes()">
-                    <i class="fas fa-upload"></i> Bulk Import to Firebase
-                </button>
-                <p id="bulkStatus" style="font-size:11px; margin-top:10px; color:#666;"></p>
-            </div>
         </div>
 
         <div id="nav-comp" class="tab-content">
@@ -127,18 +122,27 @@
                 <div class="input-group"><label>Notification Message</label><input type="text" id="notifMessage"></div>
                 <button class="btn-save" style="background:#FF9800" onclick="updateNotifications()">Sync Notifications</button>
             </div>
+        </div>
+
+        <div id="nav-gifts" class="tab-content">
+            <div class="card">
+                <div class="card-title">Add/Edit Gift</div>
+                <div class="input-group"><label>Gift ID (e.g. headphone_01)</label><input type="text" id="gKey"></div>
+                <div class="input-group"><label>Gift Name</label><input type="text" id="gName"></div>
+                <div class="input-group"><label>Points Cost</label><input type="number" id="gPoints"></div>
+                <div class="input-group"><label>Stock Amount</label><input type="number" id="gStock"></div>
+                <div class="input-group"><label>Image URL (Cloudinary/Direct)</label><input type="text" id="gImg"></div>
+                <button class="btn-save" onclick="saveGift()">Update Awards Database</button>
+            </div>
 
             <div class="card">
-                <div class="card-title">App Update Control</div>
-                <div class="input-group"><label>Version Number</label><input type="number" id="vNum"></div>
-                <div class="input-group">
-                    <label>Update Availability</label>
-                    <select id="vStatus">
-                        <option value="1">Available (Enable Update)</option>
-                        <option value="0">Not Available (Disable Update)</option>
-                    </select>
-                </div>
-                <button class="btn-save" style="background:#424242" onclick="updateApp()">Sync App Version</button>
+                <div class="card-title">Current Gift Inventory</div>
+                <div id="giftInventoryList"></div>
+            </div>
+
+            <div class="card">
+                <div class="card-title">User Gift Orders</div>
+                <div id="orderList"></div>
             </div>
         </div>
 
@@ -166,6 +170,7 @@
     <div class="bottom-nav">
         <button class="nav-item active" onclick="switchTab(this, 'nav-dash')"><i class="fas fa-home"></i>Home</button>
         <button class="nav-item" onclick="switchTab(this, 'nav-comp')"><i class="fas fa-trophy"></i>Event</button>
+        <button class="nav-item" onclick="switchTab(this, 'nav-gifts')"><i class="fas fa-shopping-bag"></i>Gifts</button>
         <button class="nav-item" onclick="switchTab(this, 'nav-media')"><i class="fas fa-play-circle"></i>Guides</button>
         <button class="nav-item" onclick="switchTab(this, 'nav-winners')"><i class="fas fa-award"></i>Winners</button>
     </div>
@@ -181,9 +186,7 @@
 
     window.onload = function() {
         database.ref('AdminSessions/'+adminDeviceId).get().then(s => {
-            if(s.exists() && Date.now() - s.val().lastLogin < 86400000) {
-                showPanel();
-            }
+            if(s.exists() && Date.now() - s.val().lastLogin < 86400000) { showPanel(); }
         });
     };
 
@@ -200,6 +203,8 @@
         document.getElementById('loginOverlay').style.display = 'none';
         document.getElementById('adminPanel').style.display = 'block';
         initDashboard();
+        loadGifts();
+        loadOrders();
     }
 
     function switchTab(btn, tabId) {
@@ -222,7 +227,6 @@
             let keys = Object.keys(snap.val() || {}).sort();
             let lastKey = "quiz00000";
             if(keys.length > 0) {
-                // Find the highest numeric ID correctly
                 const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
                 lastKey = "quiz" + maxNum.toString().padStart(5,'0');
             }
@@ -232,32 +236,80 @@
 
         loadDynamicList('GuideVideos', 'guideList');
         loadDynamicList('WinnersPosts', 'winnersList');
+    }
 
-        database.ref('Competition').get().then(s => {
-            if(s.exists()){
-                const d = s.val();
-                document.getElementById('compStartD').value = d.StartDate || "";
-                document.getElementById('compStartT').value = d.StartTime || "";
-                document.getElementById('compEndD').value = d.EndDate || "";
-                document.getElementById('compEndT').value = d.EndTime || "";
-            }
-        });
-
-        database.ref('Updates').get().then(s => {
-            if(s.exists()){
-                document.getElementById('vNum').value = s.val().Version || 0;
-                document.getElementById('vStatus').value = s.val().Avalable || 0;
-            }
-        });
-
-        database.ref('Notifications').get().then(s => {
-            if(s.exists()){
-                document.getElementById('notifTopic').value = s.val().Topic || "";
-                document.getElementById('notifMessage').value = s.val().Message || "";
-            }
+    // --- GIFT MANAGEMENT LOGIC ---
+    function saveGift() {
+        const key = document.getElementById('gKey').value;
+        if(!key) return alert("Enter Gift ID");
+        const data = {
+            name: document.getElementById('gName').value,
+            points: parseInt(document.getElementById('gPoints').value),
+            stock: parseInt(document.getElementById('gStock').value),
+            imageUrl: document.getElementById('gImg').value
+        };
+        database.ref('Awards/'+key).set(data).then(() => {
+            alert("Gift Database Updated!");
+            ['gKey','gName','gPoints','gStock','gImg'].forEach(i => document.getElementById(i).value = "");
         });
     }
 
+    function loadGifts() {
+        database.ref('Awards').on('value', snap => {
+            const container = document.getElementById('giftInventoryList');
+            container.innerHTML = "";
+            snap.forEach(item => {
+                let d = item.val();
+                container.innerHTML += `
+                <div class="list-item">
+                    <img src="${d.imageUrl}" style="width:40px; border-radius:5px; vertical-align:middle; margin-right:10px;">
+                    <strong>${d.name}</strong> - ${d.points} Pts (Qty: ${d.stock})
+                    <i class="fas fa-trash btn-delete" onclick="database.ref('Awards/${item.key}').remove()"></i>
+                </div>`;
+            });
+        });
+    }
+
+    // --- ORDER MANAGEMENT LOGIC ---
+    function loadOrders() {
+        database.ref('Orders').on('value', snap => {
+            const container = document.getElementById('orderList');
+            container.innerHTML = "";
+            let orders = [];
+            snap.forEach(o => { orders.push({id: o.key, ...o.val()}); });
+            orders.sort((a,b) => b.timestamp - a.timestamp);
+
+            orders.forEach(o => {
+                let statusClass = o.status === 'Approved' ? 's-approved' : (o.status === 'In Delivery' ? 's-delivery' : 's-done');
+                container.innerHTML += `
+                <div class="order-card">
+                    <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                        <small>ID: ${o.userAccountId}</small>
+                        <span class="status-badge ${statusClass}">${o.status}</span>
+                    </div>
+                    <strong>${o.item.name}</strong> for ${o.userAccountName}<br>
+                    <small>📍 ${o.delivery.address}, ${o.delivery.district}</small><br>
+                    <small>📞 ${o.delivery.contact}</small>
+                    <div style="margin-top:10px; display:flex; gap:5px;">
+                        <select onchange="updateOrderStatus('${o.id}', this.value)" style="font-size:11px; padding:5px;">
+                            <option value="">Update Status</option>
+                            <option value="Approved">Approved</option>
+                            <option value="In Delivery">In Delivery</option>
+                            <option value="Delivered">Delivered</option>
+                        </select>
+                        <button onclick="database.ref('Orders/${o.id}').remove()" style="background:#ff5252; color:white; border:none; border-radius:5px; padding:5px 10px; font-size:11px;">Clear Order</button>
+                    </div>
+                </div>`;
+            });
+        });
+    }
+
+    function updateOrderStatus(orderId, newStatus) {
+        if(!newStatus) return;
+        database.ref('Orders/'+orderId).update({ status: newStatus }).then(() => alert("Status Updated!"));
+    }
+
+    // --- SHARED FUNCTIONS ---
     function loadDynamicList(node, containerId) {
         database.ref(node).on('value', snap => {
             const container = document.getElementById(containerId);
@@ -271,7 +323,6 @@
                 else if (node === 'WinnersPosts' && data['Post' + i]) 
                     items.push({ key: i, title: data['Caption' + i], url: data['Post' + i] });
             }
-
             items.forEach(item => {
                 container.innerHTML += `
                     <div class="list-item">
@@ -287,18 +338,15 @@
         const title = document.getElementById(labelId).value;
         const url = document.getElementById(urlId).value;
         if(!title || !url) return alert("Fill both fields");
-
         database.ref(node).once('value', snap => {
             let data = snap.val() || {};
             let nextIndex = 1;
             while (data[(node === 'GuideVideos' ? 'Video' : 'Post') + nextIndex]) { nextIndex++; }
             let updates = {};
             if (node === 'GuideVideos') {
-                updates['Video' + nextIndex] = url;
-                updates['Video' + nextIndex + 'Title'] = title;
+                updates['Video' + nextIndex] = url; updates['Video' + nextIndex + 'Title'] = title;
             } else {
-                updates['Post' + nextIndex] = url;
-                updates['Caption' + nextIndex] = title;
+                updates['Post' + nextIndex] = url; updates['Caption' + nextIndex] = title;
             }
             database.ref(node).update(updates).then(() => {
                 document.getElementById(labelId).value = "";
@@ -310,21 +358,16 @@
     function deleteItem(node, index) {
         if(!confirm("Remove this item?")) return;
         let updates = {};
-        if (node === 'GuideVideos') {
-            updates['Video' + index] = null; updates['Video' + index + 'Title'] = null;
-        } else {
-            updates['Post' + index] = null; updates['Caption' + index] = null;
-        }
+        if (node === 'GuideVideos') { updates['Video' + index] = null; updates['Video' + index + 'Title'] = null; }
+        else { updates['Post' + index] = null; updates['Caption' + index] = null; }
         database.ref(node).update(updates);
     }
 
-    // SINGLE QUIZ UPLOAD
     function uploadQuiz() {
         const q = document.getElementById('qText').value;
         const a1 = document.getElementById('ans1').value;
         const cA = document.getElementById('correctAns').value;
         if(!q || !a1 || !cA) return alert("Please fill important fields!");
-
         const data = {
             question: q,
             correctAnswer: cA,
@@ -334,39 +377,6 @@
             alert("Success!");
             ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
         });
-    }
-
-    // BULK QUIZ UPLOAD (NEW FUNCTION)
-    function uploadBulkQuizzes() {
-        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
-        const statusLabel = document.getElementById('bulkStatus');
-
-        if (!jsonInput) return alert("කරුණාකර JSON දත්ත ඇතුළත් කරන්න.");
-
-        try {
-            const quizzesObject = JSON.parse(jsonInput);
-            const count = Object.keys(quizzesObject).length;
-            
-            if (!confirm(`ප්‍රශ්න ${count} ක් එකවර Upload කිරීමට අවශ්‍යද?`)) return;
-
-            statusLabel.innerText = "Uploading... Please wait...";
-            statusLabel.style.color = "blue";
-
-            database.ref('Quizzes/Quizzes').update(quizzesObject).then(() => {
-                alert("සාර්ථකයි! ප්‍රශ්න " + count + " ක් ඇතුළත් කරන ලදී.");
-                document.getElementById('bulkJsonInput').value = "";
-                statusLabel.innerText = "Last Status: Success (" + count + " added)";
-                statusLabel.style.color = "green";
-            }).catch(err => {
-                alert("Error: " + err.message);
-                statusLabel.style.color = "red";
-            });
-
-        } catch (e) {
-            alert("JSON Format එක වැරදියි!");
-            statusLabel.innerText = "Error: Invalid JSON";
-            statusLabel.style.color = "red";
-        }
     }
 
     function updateCompetition() {
@@ -380,27 +390,20 @@
         database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
     }
 
-    function updateApp() {
-        database.ref('Updates').update({
-            Avalable: parseInt(document.getElementById('vStatus').value),
-            Version: parseInt(document.getElementById('vNum').value)
-        }).then(() => alert("App Version Settings Updated!"));
-    }
-
-    function resetCompetitionPoints() {
-        if (!confirm("WARNING: This will set ALL users' CompetitionPoints to 0! Proceed?")) return;
-        database.ref('User').once('value').then(snap => {
-            let updates = {};
-            snap.forEach(userSnap => { updates[userSnap.key + '/CompetitionPoints'] = 0; });
-            database.ref('User').update(updates).then(() => alert("All points reset!"));
-        });
-    }
-
     function updateNotifications() {
         const topic = document.getElementById('notifTopic').value;
         const msg = document.getElementById('notifMessage').value;
         if(!topic || !msg) return alert("Fields cannot be empty");
         database.ref('Notifications').update({ Topic: topic, Message: msg }).then(() => alert("Notification Updated!"));
+    }
+
+    function resetCompetitionPoints() {
+        if (!confirm("WARNING: Reset points?")) return;
+        database.ref('User').once('value').then(snap => {
+            let updates = {};
+            snap.forEach(userSnap => { updates[userSnap.key + '/CompetitionPoints'] = 0; });
+            database.ref('User').update(updates).then(() => alert("All points reset!"));
+        });
     }
 </script>
 </body>

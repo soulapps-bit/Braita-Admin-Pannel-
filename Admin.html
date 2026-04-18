@@ -366,16 +366,74 @@
     }
 
     function loadOrders() {
-        database.ref('Orders').on('value', snap => {
-            const container = document.getElementById('orderList');
-            container.innerHTML = "";
-            snap.forEach(o => {
-                let d = o.val();
-                let sClass = d.status === 'Approved' ? 's-approved' : (d.status === 'In Delivery' ? 's-delivery' : 's-done');
-                container.innerHTML += `<div class="order-card"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><small>ID: ${d.userAccountId}</small><span class="status-badge ${sClass}">${d.status}</span></div><strong>${d.item.name}</strong> for ${d.userAccountName}<br><small>📍 ${d.delivery.address}</small><div style="margin-top:10px; display:flex; gap:5px;"><select onchange="database.ref('Orders/${o.key}').update({status: this.value})" style="flex:1; padding:5px;"><option value="">Update Status</option><option value="Approved">Approved</option><option value="In Delivery">In Delivery</option><option value="Delivered">Delivered</option></select><button onclick="database.ref('Orders/${o.key}').remove()" style="background:#ff5252; color:white; border:none; padding:5px 10px; border-radius:5px;">Clear</button></div></div>`;
-            });
+    database.ref('Orders').on('value', snap => {
+        const container = document.getElementById('orderList');
+        container.innerHTML = "";
+        
+        if(!snap.exists()) {
+            container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No orders found.</p>";
+            return;
+        }
+
+        let orders = [];
+        snap.forEach(o => { 
+            orders.push({id: o.key, ...o.val()}); 
         });
-    }
+
+        // Sort: Newest first
+        orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+        orders.forEach(o => {
+            const d = o.delivery || {};
+            const item = o.item || {};
+            const status = o.status || "Approved";
+            
+            // Define status colors
+            let sClass = status === 'Approved' ? 's-approved' : (status === 'In Delivery' ? 's-delivery' : 's-done');
+            
+            // Format Date from timestamp
+            let dateStr = o.timestamp ? new Date(o.timestamp).toLocaleString() : "Unknown Date";
+
+            container.innerHTML += `
+            <div class="order-card" style="border-left: 5px solid ${status === 'Delivered' ? '#4CAF50' : '#FF9800'}; padding: 15px; margin-bottom: 20px;">
+                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                    <div>
+                        <span style="font-weight:bold; color:var(--primary); font-size:14px;">${o.userAccountName || 'Visitor'}</span><br>
+                        <small style="color:#888;">User ID: ${o.userAccountId || 'N/A'}</small><br>
+                        <small style="color:#aaa;">Ordered: ${dateStr}</small>
+                    </div>
+                    <span class="status-badge ${sClass}">${status}</span>
+                </div>
+
+                <div style="display:flex; gap:10px; background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
+                    <img src="${item.imageUrl}" style="width:50px; height:50px; border-radius:5px; object-fit:cover;">
+                    <div>
+                        <strong style="display:block; font-size:14px;">${item.name || 'Gift Item'}</strong>
+                        <small style="color:var(--primary); font-weight:bold;">${item.points || 0} Points Deducted</small>
+                    </div>
+                </div>
+
+                <div style="background:#fff; border:1px dashed #ddd; padding:10px; border-radius:8px; font-size:13px;">
+                    <div style="margin-bottom:5px;"><i class="fas fa-user" style="width:20px; color:#666;"></i> Recipient: <strong>${d.deliveryName || 'N/A'}</strong></div>
+                    <div style="margin-bottom:5px;"><i class="fas fa-map-marker-alt" style="width:20px; color:#ff5252;"></i> Address: ${d.address || 'N/A'}, ${d.district || ''}</div>
+                    <div style="margin-bottom:5px;"><i class="fas fa-phone-alt" style="width:20px; color:#4CAF50;"></i> Contact: <a href="tel:${d.contact}" style="color:inherit; text-decoration:none;"><strong>${d.contact || 'N/A'}</strong></a></div>
+                </div>
+
+                <div style="margin-top:15px; display:flex; gap:10px;">
+                    <select onchange="database.ref('Orders/${o.id}').update({status: this.value})" style="flex:2; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:12px; cursor:pointer;">
+                        <option value="">Change Status...</option>
+                        <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
+                        <option value="In Delivery" ${status === 'In Delivery' ? 'selected' : ''}>In Delivery</option>
+                        <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                    </select>
+                    <button onclick="if(confirm('Delete order record?')) database.ref('Orders/${o.id}').remove()" style="flex:1; background:#ff5252; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
+                        <i class="fas fa-trash"></i> Clear
+                    </button>
+                </div>
+            </div>`;
+        });
+    });
+}
 
     function loadDynamicList(node, containerId) {
         database.ref(node).on('value', snap => {

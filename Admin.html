@@ -32,9 +32,8 @@
         .stat-bubble span { display: block; font-size: 18px; font-weight: 800; }
         .stat-bubble small { font-size: 9px; opacity: 0.8; text-transform: uppercase; }
 
-        .list-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; cursor: pointer; transition: 0.2s; }
-        .list-item:hover { background: #f0e1f5; }
-        .btn-delete { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #ff5252; cursor: pointer; padding: 10px; z-index: 10; }
+        .list-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; cursor: pointer; }
+        .btn-delete { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #ff5252; cursor: pointer; padding: 10px; }
 
         .input-group { margin-bottom: 15px; }
         label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
@@ -109,32 +108,45 @@
                     <textarea id="bulkJsonInput" rows="6" style="font-family: monospace; font-size: 12px;" placeholder='{"quiz01": {"question": "Example?", "answers": ["A", "B", "C", "D"], "correctAnswer": "A"}}'></textarea>
                 </div>
                 <button class="btn-save" style="background: #673AB7;" onclick="uploadBulkQuizzes()">Bulk Import</button>
-                <p id="bulkStatus" style="font-size:11px; margin-top:10px; color:#666;"></p>
             </div>
         </div>
 
         <div id="nav-comp" class="tab-content">
             <div class="card">
                 <div class="card-title">Competition Timing</div>
-                <div class="input-group"><label>Start Date</label><input type="text" id="compStartD"></div>
-                <div class="input-group"><label>Start Time</label><input type="text" id="compStartT"></div>
-                <div class="input-group"><label>End Date</label><input type="text" id="compEndD"></div>
-                <div class="input-group"><label>End Time</label><input type="text" id="compEndT"></div>
+                <div class="input-group"><label>Start Date (DD-MM-YYYY)</label><input type="text" id="compStartD"></div>
+                <div class="input-group"><label>Start Time (HH:MM)</label><input type="text" id="compStartT"></div>
+                <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
+                <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
                 <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
+                <button class="btn-save" style="background:#d32f2f; margin-top:20px;" onclick="resetCompetitionPoints()">Reset Comp. Points</button>
             </div>
 
             <div class="card">
-                <div class="card-title">Notifications</div>
-                <div class="input-group"><label>Topic</label><input type="text" id="notifTopic"></div>
-                <div class="input-group"><label>Message</label><input type="text" id="notifMessage"></div>
-                <button class="btn-save" style="background:#FF9800" onclick="updateNotifications()">Sync</button>
+                <div class="card-title">In-App Notifications</div>
+                <div class="input-group"><label>Notification Heading</label><input type="text" id="notifTopic"></div>
+                <div class="input-group"><label>Notification Message</label><input type="text" id="notifMessage"></div>
+                <button class="btn-save" style="background:#FF9800" onclick="updateNotifications()">Sync Notifications</button>
+            </div>
+
+            <div class="card">
+                <div class="card-title">App Update Control</div>
+                <div class="input-group"><label>Version Number</label><input type="number" id="vNum"></div>
+                <div class="input-group">
+                    <label>Update Available?</label>
+                    <select id="vStatus">
+                        <option value="1">Available (Force Update)</option>
+                        <option value="0">Not Available</option>
+                    </select>
+                </div>
+                <button class="btn-save" style="background:#424242" onclick="updateApp()">Sync Version</button>
             </div>
         </div>
 
         <div id="nav-gifts" class="tab-content">
             <div class="card">
                 <div class="card-title" id="giftFormTitle">Add New Gift</div>
-                <div class="input-group"><label>Gift ID (Node Name)</label><input type="text" id="gKey" placeholder="headphone_03"></div>
+                <div class="input-group"><label>Gift ID</label><input type="text" id="gKey"></div>
                 <div class="input-group"><label>Gift Name</label><input type="text" id="gName"></div>
                 <div class="input-group"><label>Points Cost</label><input type="number" id="gPoints"></div>
                 <div class="input-group"><label>Stock Amount</label><input type="number" id="gStock"></div>
@@ -144,13 +156,13 @@
             </div>
 
             <div class="card">
-                <div class="card-title">Inventory (Click to Edit)</div>
-                <div id="giftInventoryList">Loading...</div>
+                <div class="card-title">Inventory</div>
+                <div id="giftInventoryList"></div>
             </div>
 
             <div class="card">
-                <div class="card-title">User Gift Orders</div>
-                <div id="orderList">Loading...</div>
+                <div class="card-title">Orders</div>
+                <div id="orderList"></div>
             </div>
         </div>
 
@@ -166,7 +178,7 @@
 
         <div id="nav-winners" class="tab-content">
             <div class="card">
-                <div class="card-title">Winner Posts</div>
+                <div class="card-title">Add Winner Post</div>
                 <input type="text" id="wT" placeholder="Caption">
                 <input type="text" id="wU" placeholder="FB Post URL" style="margin-top:10px;">
                 <button class="btn-save" onclick="addItem('WinnersPosts', 'wT', 'wU')">Add Post</button>
@@ -223,23 +235,55 @@
     }
 
     function initDashboard() {
+        // HOME STATS
         database.ref('User').on('value', snap => {
-            let uCount = snap.numChildren();
+            document.getElementById('valUsers').innerText = snap.numChildren();
             let hScore = 0;
             snap.forEach(c => { let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
-            document.getElementById('valUsers').innerText = uCount; 
             document.getElementById('valHigh').innerText = hScore;
         });
-
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
+        });
+
+        // EVENT TAB DATA (COMPETITION)
+        database.ref('Competition').on('value', snap => {
+            if(snap.exists()){
+                const d = snap.val();
+                document.getElementById('compStartD').value = d.StartDate || "";
+                document.getElementById('compStartT').value = d.StartTime || "";
+                document.getElementById('compEndD').value = d.EndDate || "";
+                document.getElementById('compEndT').value = d.EndTime || "";
+            }
+        });
+
+        // EVENT TAB DATA (NOTIFICATIONS)
+        database.ref('Notifications').on('value', snap => {
+            if(snap.exists()){
+                document.getElementById('notifTopic').value = snap.val().Topic || "";
+                document.getElementById('notifMessage').value = snap.val().Message || "";
+            }
+        });
+
+        // EVENT TAB DATA (UPDATES)
+        database.ref('Updates').on('value', snap => {
+            if(snap.exists()){
+                document.getElementById('vNum').value = snap.val().Version || 0;
+                document.getElementById('vStatus').value = snap.val().Avalable || 0;
+            }
         });
 
         loadDynamicList('GuideVideos', 'guideList');
         loadDynamicList('WinnersPosts', 'winnersList');
     }
 
-    // --- BULK QUIZ ---
+    // --- SHARED ---
+    function uploadQuiz() {
+        const q = document.getElementById('qText').value;
+        const data = { question: q, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
+        database.ref('Quizzes/Quizzes/' + Date.now()).set(data).then(() => alert("Saved!"));
+    }
+
     function uploadBulkQuizzes() {
         const jsonInput = document.getElementById('bulkJsonInput').value.trim();
         if (!jsonInput) return alert("Paste JSON");
@@ -249,53 +293,68 @@
         } catch (e) { alert("JSON Error!"); }
     }
 
-    // --- GIFT MANAGEMENT ---
+    function updateCompetition() {
+        const data = {
+            StartDate: document.getElementById('compStartD').value,
+            StartTime: document.getElementById('compStartT').value,
+            EndDate: document.getElementById('compEndD').value,
+            EndTime: document.getElementById('compEndT').value,
+            Status: "Now"
+        };
+        database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
+    }
+
+    function updateNotifications() {
+        database.ref('Notifications').update({
+            Topic: document.getElementById('notifTopic').value,
+            Message: document.getElementById('notifMessage').value
+        }).then(() => alert("Notification Updated!"));
+    }
+
+    function updateApp() {
+        database.ref('Updates').update({
+            Version: parseInt(document.getElementById('vNum').value),
+            Avalable: parseInt(document.getElementById('vStatus').value)
+        }).then(() => alert("Update Settings Synced!"));
+    }
+
+    function resetCompetitionPoints() {
+        if (!confirm("Reset ALL users competition points to 0?")) return;
+        database.ref('User').once('value').then(snap => {
+            let up = {}; snap.forEach(u => { up[u.key + '/CompetitionPoints'] = 0; });
+            database.ref('User').update(up).then(() => alert("Reset Complete!"));
+        });
+    }
+
+    // --- GIFTS ---
     function saveGift() {
         const key = document.getElementById('gKey').value;
-        if(!key) return alert("Enter Gift ID");
-        const data = {
-            name: document.getElementById('gName').value,
-            points: parseInt(document.getElementById('gPoints').value) || 0,
-            stock: parseInt(document.getElementById('gStock').value) || 0,
-            imageUrl: document.getElementById('gImg').value
-        };
-        database.ref('Awards/'+key).set(data).then(() => {
-            alert("Database Updated!");
-            resetGiftForm();
-        });
+        const data = { name: document.getElementById('gName').value, points: parseInt(document.getElementById('gPoints').value) || 0, stock: parseInt(document.getElementById('gStock').value) || 0, imageUrl: document.getElementById('gImg').value };
+        database.ref('Awards/'+key).set(data).then(() => { alert("Gifts Updated!"); resetGiftForm(); });
     }
 
     function loadGifts() {
         database.ref('Awards').on('value', snap => {
             const container = document.getElementById('giftInventoryList');
             container.innerHTML = "";
-            if(!snap.exists()) return container.innerHTML = "No items in Awards node.";
             snap.forEach(item => {
                 let d = item.val();
                 let div = document.createElement('div');
                 div.className = "list-item";
                 div.onclick = () => editGift(item.key, d.name, d.points, d.stock, d.imageUrl);
-                div.innerHTML = `
-                    <img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:5px; vertical-align:middle; margin-right:10px; object-fit:cover;">
-                    <strong>${d.name || 'Unnamed'}</strong> - ${d.points || 0} Pts (Stock: ${d.stock || 0})
-                    <i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); if(confirm('Delete?')) database.ref('Awards/${item.key}').remove()"></i>
-                `;
+                div.innerHTML = `<img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:5px; vertical-align:middle; margin-right:10px; object-fit:cover;"><strong>${d.name}</strong> - ${d.points} Pts<i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); database.ref('Awards/${item.key}').remove()"></i>`;
                 container.appendChild(div);
             });
         });
     }
 
     function editGift(key, name, points, stock, img) {
-        document.getElementById('gKey').value = key;
-        document.getElementById('gKey').disabled = true;
-        document.getElementById('gName').value = name;
-        document.getElementById('gPoints').value = points;
-        document.getElementById('gStock').value = stock;
-        document.getElementById('gImg').value = img;
+        document.getElementById('gKey').value = key; document.getElementById('gKey').disabled = true;
+        document.getElementById('gName').value = name; document.getElementById('gPoints').value = points;
+        document.getElementById('gStock').value = stock; document.getElementById('gImg').value = img;
         document.getElementById('giftFormTitle').innerText = "Edit: " + key;
         document.getElementById('btnGiftSave').innerText = "Update Gift";
         document.getElementById('btnGiftCancel').style.display = 'block';
-        window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     function resetGiftForm() {
@@ -306,88 +365,44 @@
         document.getElementById('btnGiftCancel').style.display = 'none';
     }
 
-    // --- ORDERS ---
     function loadOrders() {
         database.ref('Orders').on('value', snap => {
             const container = document.getElementById('orderList');
             container.innerHTML = "";
-            if(!snap.exists()) return container.innerHTML = "No orders found.";
-            let orders = [];
-            snap.forEach(o => { orders.push({id: o.key, ...o.val()}); });
-            orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-            orders.forEach(o => {
-                let status = o.status || "Approved";
-                let sClass = status === 'Approved' ? 's-approved' : (status === 'In Delivery' ? 's-delivery' : 's-done');
-                container.innerHTML += `
-                <div class="order-card">
-                    <div style="display:flex; justify-content:space-between; margin-bottom:5px;">
-                        <small>User: ${o.userAccountId || 'Guest'}</small>
-                        <span class="status-badge ${sClass}">${status}</span>
-                    </div>
-                    <strong>${(o.item && o.item.name) ? o.item.name : 'Unknown Item'}</strong> for ${o.userAccountName || 'Visitor'}<br>
-                    <small>📍 ${o.delivery ? o.delivery.address : 'No Address'}</small><br>
-                    <small>📞 ${o.delivery ? o.delivery.contact : 'No Phone'}</small>
-                    <div style="margin-top:10px; display:flex; gap:5px;">
-                        <select onchange="database.ref('Orders/${o.id}').update({status: this.value})" style="flex:1; padding:5px;">
-                            <option value="">Update Status</option>
-                            <option value="Approved">Approved</option>
-                            <option value="In Delivery">In Delivery</option>
-                            <option value="Delivered">Delivered</option>
-                        </select>
-                        <button onclick="if(confirm('Delete order?')) database.ref('Orders/${o.id}').remove()" style="background:#ff5252; color:white; border:none; padding:5px 10px; border-radius:5px;">Delete</button>
-                    </div>
-                </div>`;
+            snap.forEach(o => {
+                let d = o.val();
+                let sClass = d.status === 'Approved' ? 's-approved' : (d.status === 'In Delivery' ? 's-delivery' : 's-done');
+                container.innerHTML += `<div class="order-card"><div style="display:flex; justify-content:space-between; margin-bottom:5px;"><small>ID: ${d.userAccountId}</small><span class="status-badge ${sClass}">${d.status}</span></div><strong>${d.item.name}</strong> for ${d.userAccountName}<br><small>📍 ${d.delivery.address}</small><div style="margin-top:10px; display:flex; gap:5px;"><select onchange="database.ref('Orders/${o.key}').update({status: this.value})" style="flex:1; padding:5px;"><option value="">Update Status</option><option value="Approved">Approved</option><option value="In Delivery">In Delivery</option><option value="Delivered">Delivered</option></select><button onclick="database.ref('Orders/${o.key}').remove()" style="background:#ff5252; color:white; border:none; padding:5px 10px; border-radius:5px;">Clear</button></div></div>`;
             });
         });
     }
 
-    // --- SHARED ---
     function loadDynamicList(node, containerId) {
         database.ref(node).on('value', snap => {
             const container = document.getElementById(containerId);
             container.innerHTML = "";
-            if(!snap.exists()) return;
-            const data = snap.val();
+            const d = snap.val() || {};
             for (let i = 1; i <= 20; i++) {
-                let key = (node === 'GuideVideos' ? 'Video'+i : 'Post'+i);
-                let title = (node === 'GuideVideos' ? data['Video'+i+'Title'] : data['Caption'+i]);
-                if (data[key]) {
-                    container.innerHTML += `
-                        <div class="list-item">
-                            <strong>${title || 'No Title'}</strong><br>
-                            <i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', ${i})"></i>
-                        </div>`;
-                }
+                let k = (node === 'GuideVideos' ? 'Video'+i : 'Post'+i);
+                let t = (node === 'GuideVideos' ? d['Video'+i+'Title'] : d['Caption'+i]);
+                if (d[k]) container.innerHTML += `<div class="list-item"><strong>${t}</strong><i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', ${i})"></i></div>`;
             }
         });
     }
 
     function addItem(node, lId, uId) {
-        const title = document.getElementById(lId).value;
-        const url = document.getElementById(uId).value;
-        if(!title || !url) return alert("Fill fields");
+        const t = document.getElementById(lId).value; const u = document.getElementById(uId).value;
         database.ref(node).once('value', snap => {
-            let data = snap.val() || {};
-            let idx = 1;
-            while (data[(node === 'GuideVideos' ? 'Video' : 'Post') + idx]) { idx++; }
-            let up = {};
-            if (node === 'GuideVideos') { up['Video'+idx] = url; up['Video'+idx+'Title'] = title; }
-            else { up['Post'+idx] = url; up['Caption'+idx] = title; }
+            let d = snap.val() || {}; let idx = 1;
+            while (d[(node === 'GuideVideos' ? 'Video' : 'Post') + idx]) { idx++; }
+            let up = {}; if (node === 'GuideVideos') { up['Video'+idx] = u; up['Video'+idx+'Title'] = t; } else { up['Post'+idx] = u; up['Caption'+idx] = t; }
             database.ref(node).update(up).then(() => { document.getElementById(lId).value = ""; document.getElementById(uId).value = ""; });
         });
     }
 
     function deleteItem(node, idx) {
-        let up = {};
-        if (node === 'GuideVideos') { up['Video'+idx] = null; up['Video'+idx+'Title'] = null; }
-        else { up['Post'+idx] = null; up['Caption'+idx] = null; }
+        let up = {}; if (node === 'GuideVideos') { up['Video'+idx] = null; up['Video'+idx+'Title'] = null; } else { up['Post'+idx] = null; up['Caption'+idx] = null; }
         database.ref(node).update(up);
-    }
-
-    function uploadQuiz() {
-        const q = document.getElementById('qText').value;
-        const data = { question: q, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
-        database.ref('Quizzes/Quizzes/' + (window.nextKey || 'quiz_new')).set(data).then(() => alert("Saved!"));
     }
 </script>
 </body>

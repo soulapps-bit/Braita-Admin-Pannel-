@@ -146,7 +146,7 @@
         <div id="nav-gifts" class="tab-content">
             <div class="card">
                 <div class="card-title" id="giftFormTitle">Add New Gift</div>
-                <div class="input-group"><label>Gift ID</label><input type="text" id="gKey"></div>
+                <div class="input-group"><label>Gift ID</label><input type="text" id="gKey" disabled placeholder="Generating unique ID..."></div>
                 <div class="input-group"><label>Gift Name</label><input type="text" id="gName"></div>
                 <div class="input-group"><label>Points Cost</label><input type="number" id="gPoints"></div>
                 <div class="input-group"><label>Stock Amount</label><input type="number" id="gStock"></div>
@@ -225,6 +225,7 @@
         initDashboard();
         loadGifts();
         loadOrders();
+        generateUniqueGiftID();
     }
 
     function switchTab(btn, tabId) {
@@ -232,10 +233,34 @@
         document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
         document.getElementById(tabId).classList.add('active');
         btn.classList.add('active');
+
+        if(tabId === 'nav-gifts') {
+            const currentID = document.getElementById('gKey').value;
+            if(!currentID || currentID === "" || currentID.includes("Editing")) {
+                generateUniqueGiftID();
+            }
+        }
+    }
+
+    async function generateUniqueGiftID() {
+        const gKeyInput = document.getElementById('gKey');
+        gKeyInput.value = "Generating Unique ID...";
+        
+        let unique = false;
+        let newID = "";
+
+        while (!unique) {
+            let rand = Math.floor(1000 + Math.random() * 9000);
+            newID = "gift_" + rand;
+            const snapshot = await database.ref('Awards/' + newID).get();
+            if (!snapshot.exists()) {
+                unique = true;
+            }
+        }
+        gKeyInput.value = newID;
     }
 
     function initDashboard() {
-        // HOME STATS
         database.ref('User').on('value', snap => {
             document.getElementById('valUsers').innerText = snap.numChildren();
             let hScore = 0;
@@ -246,7 +271,6 @@
             document.getElementById('valTotal').innerText = snap.numChildren();
         });
 
-        // EVENT TAB DATA (COMPETITION)
         database.ref('Competition').on('value', snap => {
             if(snap.exists()){
                 const d = snap.val();
@@ -257,7 +281,6 @@
             }
         });
 
-        // EVENT TAB DATA (NOTIFICATIONS)
         database.ref('Notifications').on('value', snap => {
             if(snap.exists()){
                 document.getElementById('notifTopic').value = snap.val().Topic || "";
@@ -265,7 +288,6 @@
             }
         });
 
-        // EVENT TAB DATA (UPDATES)
         database.ref('Updates').on('value', snap => {
             if(snap.exists()){
                 document.getElementById('vNum').value = snap.val().Version || 0;
@@ -277,7 +299,6 @@
         loadDynamicList('WinnersPosts', 'winnersList');
     }
 
-    // --- SHARED ---
     function uploadQuiz() {
         const q = document.getElementById('qText').value;
         const data = { question: q, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
@@ -326,145 +347,152 @@
         });
     }
 
-    // --- GIFTS ---
     function saveGift() {
         const key = document.getElementById('gKey').value;
-        const data = { name: document.getElementById('gName').value, points: parseInt(document.getElementById('gPoints').value) || 0, stock: parseInt(document.getElementById('gStock').value) || 0, imageUrl: document.getElementById('gImg').value };
-        database.ref('Awards/'+key).set(data).then(() => { alert("Gifts Updated!"); resetGiftForm(); });
+        if(!key || key.includes("Generating")) return alert("Please wait for ID generation");
+        
+        const data = { 
+            name: document.getElementById('gName').value, 
+            points: parseInt(document.getElementById('gPoints').value) || 0, 
+            stock: parseInt(document.getElementById('gStock').value) || 0, 
+            imageUrl: document.getElementById('gImg').value 
+        };
+        
+        if(!data.name || !data.imageUrl) return alert("Please fill Name and Image URL");
+
+        database.ref('Awards/'+key).set(data).then(() => { 
+            alert("Gifts Updated!"); 
+            resetGiftForm(); 
+        });
     }
 
     function loadGifts() {
-    database.ref('Awards').on('value', snap => {
-        const container = document.getElementById('giftInventoryList');
-        container.innerHTML = "";
-        
-        if(!snap.exists()) {
-            container.innerHTML = "<p style='text-align:center; color:#888;'>No items in inventory.</p>";
-            return;
-        }
+        database.ref('Awards').on('value', snap => {
+            const container = document.getElementById('giftInventoryList');
+            container.innerHTML = "";
+            
+            if(!snap.exists()) {
+                container.innerHTML = "<p style='text-align:center; color:#888;'>No items in inventory.</p>";
+                return;
+            }
 
-        snap.forEach(item => {
-            let d = item.val();
-            let stock = d.stock || 0; // Get stock value from Firebase
-            let div = document.createElement('div');
-            div.className = "list-item";
-            
-            // Layout with flex to align everything nicely
-            div.style.display = "flex";
-            div.style.alignItems = "center";
-            div.style.gap = "12px";
-            div.style.padding = "10px";
-            
-            div.onclick = () => editGift(item.key, d.name, d.points, stock, d.imageUrl);
-            
-            div.innerHTML = `
-                <img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
-                <div style="flex:1;">
-                    <strong style="display:block; font-size:14px;">${d.name}</strong>
-                    <small style="color:var(--primary); font-weight:bold;">${d.points} Points</small>
-                </div>
+            snap.forEach(item => {
+                let d = item.val();
+                let stock = d.stock || 0;
+                let div = document.createElement('div');
+                div.className = "list-item";
+                div.style.display = "flex";
+                div.style.alignItems = "center";
+                div.style.gap = "12px";
+                div.style.padding = "10px";
                 
-                <div style="text-align:right; margin-right:40px;">
-                    <span style="background:${stock > 0 ? '#E8F5E9' : '#FFEBEE'}; 
-                                 color:${stock > 0 ? '#2E7D32' : '#C62828'}; 
-                                 padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; border: 1px solid currentColor;">
-                        Stock: ${stock}
-                    </span>
-                </div>
+                div.onclick = () => editGift(item.key, d.name, d.points, stock, d.imageUrl);
+                
+                div.innerHTML = `
+                    <img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
+                    <div style="flex:1;">
+                        <strong style="display:block; font-size:14px;">${d.name}</strong>
+                        <small style="color:var(--primary); font-weight:bold;">${d.points} Points</small>
+                    </div>
+                    
+                    <div style="text-align:right; margin-right:40px;">
+                        <span style="background:${stock > 0 ? '#E8F5E9' : '#FFEBEE'}; 
+                                     color:${stock > 0 ? '#2E7D32' : '#C62828'}; 
+                                     padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; border: 1px solid currentColor;">
+                            Stock: ${stock}
+                        </span>
+                    </div>
 
-                <i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); if(confirm('Delete ${d.name}?')) database.ref('Awards/${item.key}').remove()"></i>
-            `;
-            container.appendChild(div);
+                    <i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); if(confirm('Delete ${d.name}?')) database.ref('Awards/${item.key}').remove()"></i>
+                `;
+                container.appendChild(div);
+            });
         });
-    });
-}
+    }
 
     function editGift(key, name, points, stock, img) {
-        document.getElementById('gKey').value = key; document.getElementById('gKey').disabled = true;
-        document.getElementById('gName').value = name; document.getElementById('gPoints').value = points;
-        document.getElementById('gStock').value = stock; document.getElementById('gImg').value = img;
-        document.getElementById('giftFormTitle').innerText = "Edit: " + key;
+        document.getElementById('gKey').value = key; 
+        document.getElementById('gKey').disabled = true;
+        document.getElementById('gName').value = name; 
+        document.getElementById('gPoints').value = points;
+        document.getElementById('gStock').value = stock; 
+        document.getElementById('gImg').value = img;
+        
+        document.getElementById('giftFormTitle').innerText = "Editing: " + key;
         document.getElementById('btnGiftSave').innerText = "Update Gift";
         document.getElementById('btnGiftCancel').style.display = 'block';
+        window.scrollTo({top: 0, behavior: 'smooth'});
     }
 
     function resetGiftForm() {
-        ['gKey','gName','gPoints','gStock','gImg'].forEach(i => document.getElementById(i).value = "");
-        document.getElementById('gKey').disabled = false;
+        ['gName','gPoints','gStock','gImg'].forEach(i => document.getElementById(i).value = "");
         document.getElementById('giftFormTitle').innerText = "Add New Gift";
         document.getElementById('btnGiftSave').innerText = "Add to Store";
         document.getElementById('btnGiftCancel').style.display = 'none';
+        generateUniqueGiftID();
     }
 
     function loadOrders() {
-    database.ref('Orders').on('value', snap => {
-        const container = document.getElementById('orderList');
-        container.innerHTML = "";
-        
-        if(!snap.exists()) {
-            container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No orders found.</p>";
-            return;
-        }
-
-        let orders = [];
-        snap.forEach(o => { 
-            orders.push({id: o.key, ...o.val()}); 
-        });
-
-        // Sort: Newest first
-        orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-        orders.forEach(o => {
-            const d = o.delivery || {};
-            const item = o.item || {};
-            const status = o.status || "Approved";
+        database.ref('Orders').on('value', snap => {
+            const container = document.getElementById('orderList');
+            container.innerHTML = "";
             
-            // Define status colors
-            let sClass = status === 'Approved' ? 's-approved' : (status === 'In Delivery' ? 's-delivery' : 's-done');
-            
-            // Format Date from timestamp
-            let dateStr = o.timestamp ? new Date(o.timestamp).toLocaleString() : "Unknown Date";
+            if(!snap.exists()) {
+                container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No orders found.</p>";
+                return;
+            }
 
-            container.innerHTML += `
-            <div class="order-card" style="border-left: 5px solid ${status === 'Delivered' ? '#4CAF50' : '#FF9800'}; padding: 15px; margin-bottom: 20px;">
-                <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;">
-                    <div>
-                        <span style="font-weight:bold; color:var(--primary); font-size:14px;">${o.userAccountName || 'Visitor'}</span><br>
-                        <small style="color:#888;">User ID: ${o.userAccountId || 'N/A'}</small><br>
-                        <small style="color:#aaa;">Ordered: ${dateStr}</small>
+            let orders = [];
+            snap.forEach(o => { orders.push({id: o.key, ...o.val()}); });
+            orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
+
+            orders.forEach(o => {
+                const d = o.delivery || {};
+                const item = o.item || {};
+                const status = o.status || "Approved";
+                let sClass = status === 'Approved' ? 's-approved' : (status === 'In Delivery' ? 's-delivery' : 's-done');
+                let dateStr = o.timestamp ? new Date(o.timestamp).toLocaleString() : "Unknown Date";
+
+                container.innerHTML += `
+                <div class="order-card" style="border-left: 5px solid ${status === 'Delivered' ? '#4CAF50' : '#FF9800'}; padding: 15px; margin-bottom: 20px;">
+                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;">
+                        <div>
+                            <span style="font-weight:bold; color:var(--primary); font-size:14px;">${o.userAccountName || 'Visitor'}</span><br>
+                            <small style="color:#888;">User ID: ${o.userAccountId || 'N/A'}</small><br>
+                            <small style="color:#aaa;">Ordered: ${dateStr}</small>
+                        </div>
+                        <span class="status-badge ${sClass}">${status}</span>
                     </div>
-                    <span class="status-badge ${sClass}">${status}</span>
-                </div>
 
-                <div style="display:flex; gap:10px; background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
-                    <img src="${item.imageUrl}" style="width:50px; height:50px; border-radius:5px; object-fit:cover;">
-                    <div>
-                        <strong style="display:block; font-size:14px;">${item.name || 'Gift Item'}</strong>
-                        <small style="color:var(--primary); font-weight:bold;">${item.points || 0} Points Deducted</small>
+                    <div style="display:flex; gap:10px; background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
+                        <img src="${item.imageUrl}" style="width:50px; height:50px; border-radius:5px; object-fit:cover;">
+                        <div>
+                            <strong style="display:block; font-size:14px;">${item.name || 'Gift Item'}</strong>
+                            <small style="color:var(--primary); font-weight:bold;">${item.points || 0} Points Deducted</small>
+                        </div>
                     </div>
-                </div>
 
-                <div style="background:#fff; border:1px dashed #ddd; padding:10px; border-radius:8px; font-size:13px;">
-                    <div style="margin-bottom:5px;"><i class="fas fa-user" style="width:20px; color:#666;"></i> Recipient: <strong>${d.deliveryName || 'N/A'}</strong></div>
-                    <div style="margin-bottom:5px;"><i class="fas fa-map-marker-alt" style="width:20px; color:#ff5252;"></i> Address: ${d.address || 'N/A'}, ${d.district || ''}</div>
-                    <div style="margin-bottom:5px;"><i class="fas fa-phone-alt" style="width:20px; color:#4CAF50;"></i> Contact: <a href="tel:${d.contact}" style="color:inherit; text-decoration:none;"><strong>${d.contact || 'N/A'}</strong></a></div>
-                </div>
+                    <div style="background:#fff; border:1px dashed #ddd; padding:10px; border-radius:8px; font-size:13px;">
+                        <div style="margin-bottom:5px;"><i class="fas fa-user" style="width:20px; color:#666;"></i> Recipient: <strong>${d.deliveryName || 'N/A'}</strong></div>
+                        <div style="margin-bottom:5px;"><i class="fas fa-map-marker-alt" style="width:20px; color:#ff5252;"></i> Address: ${d.address || 'N/A'}, ${d.district || ''}</div>
+                        <div style="margin-bottom:5px;"><i class="fas fa-phone-alt" style="width:20px; color:#4CAF50;"></i> Contact: <a href="tel:${d.contact}" style="color:inherit; text-decoration:none;"><strong>${d.contact || 'N/A'}</strong></a></div>
+                    </div>
 
-                <div style="margin-top:15px; display:flex; gap:10px;">
-                    <select onchange="database.ref('Orders/${o.id}').update({status: this.value})" style="flex:2; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:12px; cursor:pointer;">
-                        <option value="">Change Status...</option>
-                        <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
-                        <option value="In Delivery" ${status === 'In Delivery' ? 'selected' : ''}>In Delivery</option>
-                        <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                    </select>
-                    <button onclick="if(confirm('Delete order record?')) database.ref('Orders/${o.id}').remove()" style="flex:1; background:#ff5252; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
-                        <i class="fas fa-trash"></i> Clear
-                    </button>
-                </div>
-            </div>`;
+                    <div style="margin-top:15px; display:flex; gap:10px;">
+                        <select onchange="database.ref('Orders/${o.id}').update({status: this.value})" style="flex:2; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:12px; cursor:pointer;">
+                            <option value="">Change Status...</option>
+                            <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
+                            <option value="In Delivery" ${status === 'In Delivery' ? 'selected' : ''}>In Delivery</option>
+                            <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>Delivered</option>
+                        </select>
+                        <button onclick="if(confirm('Delete order record?')) database.ref('Orders/${o.id}').remove()" style="flex:1; background:#ff5252; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
+                            <i class="fas fa-trash"></i> Clear
+                        </button>
+                    </div>
+                </div>`;
+            });
         });
-    });
-}
+    }
 
     function loadDynamicList(node, containerId) {
         database.ref(node).on('value', snap => {

@@ -334,19 +334,50 @@
     }
 
     function loadGifts() {
-        database.ref('Awards').on('value', snap => {
-            const container = document.getElementById('giftInventoryList');
-            container.innerHTML = "";
-            snap.forEach(item => {
-                let d = item.val();
-                let div = document.createElement('div');
-                div.className = "list-item";
-                div.onclick = () => editGift(item.key, d.name, d.points, d.stock, d.imageUrl);
-                div.innerHTML = `<img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:5px; vertical-align:middle; margin-right:10px; object-fit:cover;"><strong>${d.name}</strong> - ${d.points} Pts<i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); database.ref('Awards/${item.key}').remove()"></i>`;
-                container.appendChild(div);
-            });
+    database.ref('Awards').on('value', snap => {
+        const container = document.getElementById('giftInventoryList');
+        container.innerHTML = "";
+        
+        if(!snap.exists()) {
+            container.innerHTML = "<p style='text-align:center; color:#888;'>No items in inventory.</p>";
+            return;
+        }
+
+        snap.forEach(item => {
+            let d = item.val();
+            let stock = d.stock || 0; // Get stock value from Firebase
+            let div = document.createElement('div');
+            div.className = "list-item";
+            
+            // Layout with flex to align everything nicely
+            div.style.display = "flex";
+            div.style.alignItems = "center";
+            div.style.gap = "12px";
+            div.style.padding = "10px";
+            
+            div.onclick = () => editGift(item.key, d.name, d.points, stock, d.imageUrl);
+            
+            div.innerHTML = `
+                <img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
+                <div style="flex:1;">
+                    <strong style="display:block; font-size:14px;">${d.name}</strong>
+                    <small style="color:var(--primary); font-weight:bold;">${d.points} Points</small>
+                </div>
+                
+                <div style="text-align:right; margin-right:40px;">
+                    <span style="background:${stock > 0 ? '#E8F5E9' : '#FFEBEE'}; 
+                                 color:${stock > 0 ? '#2E7D32' : '#C62828'}; 
+                                 padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; border: 1px solid currentColor;">
+                        Stock: ${stock}
+                    </span>
+                </div>
+
+                <i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); if(confirm('Delete ${d.name}?')) database.ref('Awards/${item.key}').remove()"></i>
+            `;
+            container.appendChild(div);
         });
-    }
+    });
+}
 
     function editGift(key, name, points, stock, img) {
         document.getElementById('gKey').value = key; document.getElementById('gKey').disabled = true;

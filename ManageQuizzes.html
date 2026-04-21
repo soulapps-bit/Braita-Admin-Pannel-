@@ -21,15 +21,15 @@
         
         .table-wrap { overflow-x: auto; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background: #8E7A8E; color: white; padding: 12px; font-size: 12px; text-transform: uppercase; position: sticky; top: 0; }
+        th { background: #8E7A8E; color: white; padding: 12px; font-size: 12px; text-transform: uppercase; }
         td { background: #F8F8F8; padding: 12px; text-align: center; border-bottom: 1px solid #EEE; font-size: 13px; max-width: 300px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         
         .btn-edit { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 5px; }
         .btn-delete { background: #F44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-submit { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; transition: 0.3s; }
-        .btn-submit:hover { background: #7B1FA2; transform: translateY(-2px); }
+        .btn-submit { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
 
-        #loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; display: none; }
+        #loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
+        .limit-info { text-align: center; font-size: 11px; color: #888; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -51,9 +51,10 @@
             
             <button id="mainBtn" onclick="save()" class="btn-submit">Submit Quiz Changes</button>
             
-            <input type="text" class="search-bar" id="search" onkeyup="filter()" placeholder="🔍 Search Quiz Key or Question Text...">
+            <input type="text" class="search-bar" id="search" onkeyup="filter()" placeholder="🔍 Search Quiz ID or Question Text...">
             
-            <div id="loading">Syncing with Firebase...</div>
+            <div id="loading">Connecting to Database...</div>
+            <p class="limit-info">Showing the last 50 quizzes to improve performance.</p>
 
             <div class="table-wrap">
                 <table>
@@ -78,13 +79,12 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // 1. Load Quizzes Efficiently
+        // 1. Load Quizzes - LIMIT TO LAST 50 to prevent browser crash
         function load() {
             const loader = document.getElementById('loading');
             const body = document.getElementById('list');
-            loader.style.display = "block";
 
-            database.ref('Quizzes/Quizzes').on('value', snap => {
+            database.ref('Quizzes/Quizzes').limitToLast(50).on('value', snap => {
                 body.innerHTML = "";
                 loader.style.display = "none";
 
@@ -94,14 +94,14 @@
                         items.push({ key: c.key, ...c.val() });
                     });
 
-                    // Reverse to show newest at the top
+                    // Show newest at the top
                     items.reverse();
 
                     items.forEach(quiz => {
                         body.innerHTML += `
                             <tr class="q-row">
                                 <td><strong>${quiz.key}</strong></td>
-                                <td style="text-align:left">${quiz.question || 'No Question Text'}</td>
+                                <td style="text-align:left">${quiz.question || 'No Question'}</td>
                                 <td>
                                     <button class="btn-edit" onclick="edit('${quiz.key}')">Edit</button>
                                     <button class="btn-delete" onclick="deleteQuiz('${quiz.key}')">Delete</button>
@@ -109,14 +109,12 @@
                             </tr>`;
                     });
                 } else {
-                    body.innerHTML = "<tr><td colspan='3'>No data found in Firebase.</td></tr>";
+                    body.innerHTML = "<tr><td colspan='3'>No quizzes found.</td></tr>";
                 }
-            }, error => {
-                loader.innerText = "Error: " + error.message;
             });
         }
 
-        // 2. Pull data to Form for Editing
+        // 2. Pull data for Editing (Fetches specific quiz by ID)
         function edit(key) {
             database.ref('Quizzes/Quizzes/' + key).once('value').then(snap => {
                 if (snap.exists()) {
@@ -125,7 +123,6 @@
                     document.getElementById('qText').value = d.question || "";
                     document.getElementById('correctAns').value = d.correctAnswer || ""; 
                     
-                    // Safety check for answers array
                     const answers = d.answers || ["", "", "", ""];
                     document.getElementById('ans1').value = answers[0] || "";
                     document.getElementById('ans2').value = answers[1] || ""; 
@@ -138,19 +135,17 @@
             });
         }
 
-        // 3. Delete Quiz
+        // 3. Delete
         function deleteQuiz(key) {
-            if (confirm("⚠️ Are you sure you want to delete " + key + "? This cannot be undone.")) {
-                database.ref('Quizzes/Quizzes/' + key).remove().then(() => {
-                    alert("Quiz " + key + " deleted.");
-                }).catch(err => alert("Error deleting: " + err));
+            if (confirm("Delete " + key + "?")) {
+                database.ref('Quizzes/Quizzes/' + key).remove().then(() => alert("Deleted"));
             }
         }
 
-        // 4. Save/Update Quiz
+        // 4. Save
         function save() { 
             const key = document.getElementById('qKey').value;
-            if (!key) return alert("Please enter or select a Quiz Number");
+            if (!key) return alert("Select a quiz first");
 
             const data = { 
                 question: document.getElementById('qText').value, 
@@ -164,13 +159,13 @@
             };
 
             database.ref('Quizzes/Quizzes/' + key).set(data).then(() => { 
-                alert("Quiz " + key + " Saved!"); 
+                alert("Updated!"); 
                 ['qKey','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(id => document.getElementById(id).value = "");
-                document.getElementById('mainBtn').innerText = "Submit Quiz";
+                document.getElementById('mainBtn').innerText = "Submit Quiz Changes";
             });
         }
 
-        // 5. Search Filter
+        // 5. Client-side Search Filter (Filters within the loaded 50)
         function filter() {
             const input = document.getElementById('search').value.toLowerCase();
             const rows = document.getElementsByClassName('q-row');

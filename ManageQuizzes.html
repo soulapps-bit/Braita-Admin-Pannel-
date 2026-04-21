@@ -6,6 +6,7 @@
     <title>Braita | Manage Quizzes</title>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root { --primary: #9C27B0; --outer-bg: #212121; }
         body { font-family: 'Segoe UI', sans-serif; background: var(--outer-bg); margin: 0; padding: 20px; display: flex; justify-content: center; }
@@ -17,8 +18,16 @@
         .field-label { font-size: 12px; color: #666; margin-bottom: 5px; display: block; font-weight: 600; padding-left: 5px; }
         input { width: 100%; padding: 12px; border: 1px solid #E1BEE7; border-radius: 4px; background: #F3E5F5; box-sizing: border-box; outline: none; }
         input:focus { border-color: var(--primary); background: #fff; }
-        .search-bar { width: 100%; padding: 12px; border: 2px solid var(--primary); border-radius: 25px; margin: 30px 0; background: white; font-size: 14px; outline: none; text-align: center; }
         
+        .search-container { display: flex; gap: 10px; margin-top: 20px; align-items: center; justify-content: center; }
+        .search-bar { flex: 1; padding: 12px; border: 2px solid var(--primary); border-radius: 25px; background: white; font-size: 14px; outline: none; text-align: center; }
+        
+        /* Pagination Styling */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 20px 0; }
+        .btn-page { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
+        .btn-page:disabled { background: #ccc; cursor: not-allowed; }
+        #pageIndicator { font-weight: bold; color: var(--primary); font-size: 14px; }
+
         .table-wrap { overflow-x: auto; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
         th { background: #8E7A8E; color: white; padding: 12px; font-size: 12px; text-transform: uppercase; }
@@ -29,7 +38,6 @@
         .btn-submit { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
 
         #loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
-        .limit-info { text-align: center; font-size: 11px; color: #888; margin-bottom: 10px; }
     </style>
 </head>
 <body>
@@ -51,10 +59,17 @@
             
             <button id="mainBtn" onclick="save()" class="btn-submit">Submit Quiz Changes</button>
             
-            <input type="text" class="search-bar" id="search" onkeyup="filter()" placeholder="🔍 Search Quiz ID or Question Text...">
+            <div class="search-container">
+                <input type="text" class="search-bar" id="search" onkeyup="filter()" placeholder="🔍 Search Quiz ID or Question...">
+            </div>
+
+            <div class="pagination">
+                <button class="btn-page" id="btnPrev" onclick="prevPage()"><i class="fas fa-arrow-left"></i> Prev</button>
+                <span id="pageIndicator">Page 1</span>
+                <button class="btn-page" id="btnNext" onclick="nextPage()">Next <i class="fas fa-arrow-right"></i></button>
+            </div>
             
-            <div id="loading">Connecting to Database...</div>
-            <p class="limit-info">Showing the last 50 quizzes to improve performance.</p>
+            <div id="loading">Connecting...</div>
 
             <div class="table-wrap">
                 <table>
@@ -79,42 +94,66 @@
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        // 1. Load Quizzes - LIMIT TO LAST 50 to prevent browser crash
-        function load() {
+        let lastVisibleKey = null;
+        let firstVisibleKey = null;
+        let pageStack = [];
+        let pageSize = 20;
+
+        // 1. Load Quizzes with Pagination Logic
+        function load(direction = 'first') {
             const loader = document.getElementById('loading');
             const body = document.getElementById('list');
+            loader.style.display = "block";
+            
+            let query = database.ref('Quizzes/Quizzes').orderByKey();
 
-            database.ref('Quizzes/Quizzes').limitToLast(50).on('value', snap => {
+            if (direction === 'next' && lastVisibleKey) {
+                query = query.startAfter(lastVisibleKey).limitToFirst(pageSize);
+            } else if (direction === 'prev' && firstVisibleKey) {
+                query = query.endBefore(firstVisibleKey).limitToLast(pageSize);
+            } else {
+                query = query.limitToFirst(pageSize);
+                pageStack = [];
+            }
+
+            query.once('value', snap => {
                 body.innerHTML = "";
                 loader.style.display = "none";
 
                 if (snap.exists()) {
-                    let items = [];
+                    let keys = Object.keys(snap.val());
+                    firstVisibleKey = keys[0];
+                    lastVisibleKey = keys[keys.length - 1];
+
                     snap.forEach(c => {
-                        items.push({ key: c.key, ...c.val() });
-                    });
-
-                    // Show newest at the top
-                    items.reverse();
-
-                    items.forEach(quiz => {
+                        let quiz = c.val();
                         body.innerHTML += `
                             <tr class="q-row">
-                                <td><strong>${quiz.key}</strong></td>
-                                <td style="text-align:left">${quiz.question || 'No Question'}</td>
+                                <td><strong>${c.key}</strong></td>
+                                <td style="text-align:left">${quiz.question || '---'}</td>
                                 <td>
-                                    <button class="btn-edit" onclick="edit('${quiz.key}')">Edit</button>
-                                    <button class="btn-delete" onclick="deleteQuiz('${quiz.key}')">Delete</button>
+                                    <button class="btn-edit" onclick="edit('${c.key}')">Edit</button>
+                                    <button class="btn-delete" onclick="deleteQuiz('${c.key}')">Delete</button>
                                 </td>
                             </tr>`;
                     });
-                } else {
-                    body.innerHTML = "<tr><td colspan='3'>No quizzes found.</td></tr>";
+                    
+                    document.getElementById('btnPrev').disabled = (pageStack.length === 0);
+                    document.getElementById('pageIndicator').innerText = `Page ${pageStack.length + 1}`;
                 }
             });
         }
 
-        // 2. Pull data for Editing (Fetches specific quiz by ID)
+        function nextPage() {
+            pageStack.push(firstVisibleKey);
+            load('next');
+        }
+
+        function prevPage() {
+            pageStack.pop();
+            load('prev');
+        }
+
         function edit(key) {
             database.ref('Quizzes/Quizzes/' + key).once('value').then(snap => {
                 if (snap.exists()) {
@@ -122,54 +161,49 @@
                     document.getElementById('qKey').value = key; 
                     document.getElementById('qText').value = d.question || "";
                     document.getElementById('correctAns').value = d.correctAnswer || ""; 
-                    
                     const answers = d.answers || ["", "", "", ""];
                     document.getElementById('ans1').value = answers[0] || "";
                     document.getElementById('ans2').value = answers[1] || ""; 
                     document.getElementById('ans3').value = answers[2] || "";
                     document.getElementById('ans4').value = answers[3] || ""; 
-                    
                     document.getElementById('mainBtn').innerText = "Update Quiz Settings";
                     window.scrollTo({top: 0, behavior: 'smooth'});
                 }
             });
         }
 
-        // 3. Delete
         function deleteQuiz(key) {
             if (confirm("Delete " + key + "?")) {
-                database.ref('Quizzes/Quizzes/' + key).remove().then(() => alert("Deleted"));
+                database.ref('Quizzes/Quizzes/' + key).remove().then(() => {
+                    alert("Deleted");
+                    load();
+                });
             }
         }
 
-        // 4. Save
         function save() { 
             const key = document.getElementById('qKey').value;
-            if (!key) return alert("Select a quiz first");
+            if (!key) return alert("Select a quiz");
 
             const data = { 
                 question: document.getElementById('qText').value, 
                 correctAnswer: document.getElementById('correctAns').value, 
-                answers: [
-                    document.getElementById('ans1').value, 
-                    document.getElementById('ans2').value, 
-                    document.getElementById('ans3').value, 
-                    document.getElementById('ans4').value
-                ] 
+                answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] 
             };
 
             database.ref('Quizzes/Quizzes/' + key).set(data).then(() => { 
                 alert("Updated!"); 
                 ['qKey','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(id => document.getElementById(id).value = "");
                 document.getElementById('mainBtn').innerText = "Submit Quiz Changes";
+                load();
             });
         }
 
-        // 5. Client-side Search Filter (Filters within the loaded 50)
         function filter() {
             const input = document.getElementById('search').value.toLowerCase();
             const rows = document.getElementsByClassName('q-row');
             for (let r of rows) { 
+                // Checks both the Key (ID) and the Question Preview text
                 r.style.display = r.innerText.toLowerCase().includes(input) ? "" : "none"; 
             }
         }

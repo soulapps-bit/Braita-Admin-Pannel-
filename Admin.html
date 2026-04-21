@@ -260,7 +260,6 @@
         gKeyInput.value = newID;
     }
 
-    // --- 1. UPDATE: Auto-fill Question Number in initDashboard ---
     function initDashboard() {
         database.ref('User').on('value', snap => {
             document.getElementById('valUsers').innerText = snap.numChildren();
@@ -268,32 +267,27 @@
             snap.forEach(c => { let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
             document.getElementById('valHigh').innerText = hScore;
         });
-
+        
+        // --- UPDATE: AUTO-FILL QUESTION NUMBER IN INIT ---
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
             
-            // Find the highest numeric ID correctly
             let keys = Object.keys(snap.val() || {}).sort();
             let lastKey = "quiz00000";
             if(keys.length > 0) {
                 const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
                 lastKey = "quiz" + maxNum.toString().padStart(5,'0');
             }
-            
-            // Generate the next ID
             window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
-            
-            // --- CHANGE HERE: Automatically fill the Question Number input field ---
-            const qKeyField = document.getElementById('qText'); // Or your quiz number field ID
-            if(qKeyField) {
-                document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
-                // Note: If you have a separate input for 'Quiz Number', use that ID here.
-                // If you want the number added inside the Question text, uncomment below:
-                // qKeyField.value = window.nextKey + ": "; 
+            document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
+
+            // Automatically set the next number to the Question field
+            const qField = document.getElementById('qText');
+            if(qField && (qField.value === "" || qField.value.startsWith("quiz"))) {
+                qField.value = window.nextKey + ": ";
             }
         });
 
-        // (Keep the rest of your Competition, Notifications, and Updates listeners same as before)
         database.ref('Competition').on('value', snap => {
             if(snap.exists()){
                 const d = snap.val();
@@ -303,84 +297,36 @@
                 document.getElementById('compEndT').value = d.EndTime || "";
             }
         });
+
         database.ref('Notifications').on('value', snap => {
             if(snap.exists()){
                 document.getElementById('notifTopic').value = snap.val().Topic || "";
                 document.getElementById('notifMessage').value = snap.val().Message || "";
             }
         });
+
         database.ref('Updates').on('value', snap => {
             if(snap.exists()){
                 document.getElementById('vNum').value = snap.val().Version || 0;
                 document.getElementById('vStatus').value = snap.val().Avalable || 0;
             }
         });
+
         loadDynamicList('GuideVideos', 'guideList');
         loadDynamicList('WinnersPosts', 'winnersList');
     }
 
-    // --- 2. UPDATE: Clear fields after Single Upload ---
+    // --- UPDATE: CLEAR FIELDS AFTER SINGLE UPLOAD ---
     function uploadQuiz() {
         const q = document.getElementById('qText').value;
-        const data = { 
-            question: q, 
-            correctAnswer: document.getElementById('correctAns').value, 
-            answers: [
-                document.getElementById('ans1').value, 
-                document.getElementById('ans2').value, 
-                document.getElementById('ans3').value, 
-                document.getElementById('ans4').value
-            ] 
-        };
-        
-        database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
-            alert("Quiz Saved Successfully!");
-            // Clean all text input fields
-            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => {
-                document.getElementById(i).value = "";
-            });
-        });
-    }
-
-    // --- 3. UPDATE: Clear fields after Bulk Upload ---
-    function uploadBulkQuizzes() {
-        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
-        if (!jsonInput) return alert("Paste JSON data first");
-        
-        try {
-            const data = JSON.parse(jsonInput);
-            database.ref('Quizzes/Quizzes').update(data).then(() => {
-                alert("Bulk Import Successful!");
-                // Clean the bulk text input field
-                document.getElementById('bulkJsonInput').value = "";
-            });
-        } catch (e) { 
-            alert("JSON Error! Please check your formatting."); 
-        }
-    }
-
-    // --- UPDATE STARTS HERE: Clear fields for single quiz ---
-    function uploadQuiz() {
-        const q = document.getElementById('qText').value;
-        const data = { 
-            question: q, 
-            correctAnswer: document.getElementById('correctAns').value, 
-            answers: [
-                document.getElementById('ans1').value, 
-                document.getElementById('ans2').value, 
-                document.getElementById('ans3').value, 
-                document.getElementById('ans4').value
-            ] 
-        };
+        const data = { question: q, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
         database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
             alert("Saved!");
-            // Clean single quiz text input fields
             ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
         });
     }
-    // --- UPDATE ENDS HERE ---
 
-    // --- UPDATE STARTS HERE: Clear fields for bulk upload ---
+    // --- UPDATE: CLEAR FIELDS AFTER BULK UPLOAD ---
     function uploadBulkQuizzes() {
         const jsonInput = document.getElementById('bulkJsonInput').value.trim();
         if (!jsonInput) return alert("Paste JSON");
@@ -388,12 +334,10 @@
             const data = JSON.parse(jsonInput);
             database.ref('Quizzes/Quizzes').update(data).then(() => {
                 alert("Bulk Success!");
-                // Clean bulk text input field after success
-                document.getElementById('bulkJsonInput').value = "";
+                document.getElementById('bulkJsonInput').value = ""; // Clear field
             });
         } catch (e) { alert("JSON Error!"); }
     }
-    // --- UPDATE ENDS HERE ---
 
     function updateCompetition() {
         const data = {

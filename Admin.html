@@ -1,607 +1,98 @@
-<!DOCTYPE html>
-<html lang="si">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Braita | Expert Admin Hub</title>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.8.0/firebase-database-compat.js"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <style>
-        :root { --primary: #9C27B0; --bg: #f4f7f6; --text: #333; --white: #ffffff; --orange: #FF9800; --green: #4CAF50; }
-        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; padding-bottom: 80px; }
+// --- 1. UPDATE: Auto-fill Question Number in initDashboard ---
+    function initDashboard() {
+        database.ref('User').on('value', snap => {
+            document.getElementById('valUsers').innerText = snap.numChildren();
+            let hScore = 0;
+            snap.forEach(c => { let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
+            document.getElementById('valHigh').innerText = hScore;
+        });
 
-        .header { background: var(--primary); color: white; padding: 20px; text-align: center; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .header h1 { margin: 0; font-size: 20px; font-weight: 600; }
+        database.ref('Quizzes/Quizzes').on('value', snap => {
+            document.getElementById('valTotal').innerText = snap.numChildren();
+            
+            // Find the highest numeric ID correctly
+            let keys = Object.keys(snap.val() || {}).sort();
+            let lastKey = "quiz00000";
+            if(keys.length > 0) {
+                const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
+                lastKey = "quiz" + maxNum.toString().padStart(5,'0');
+            }
+            
+            // Generate the next ID
+            window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
+            
+            // --- CHANGE HERE: Automatically fill the Question Number input field ---
+            const qKeyField = document.getElementById('qText'); // Or your quiz number field ID
+            if(qKeyField) {
+                document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
+                // Note: If you have a separate input for 'Quiz Number', use that ID here.
+                // If you want the number added inside the Question text, uncomment below:
+                // qKeyField.value = window.nextKey + ": "; 
+            }
+        });
 
-        .container { padding: 15px; max-width: 800px; margin: auto; }
-        .tab-content { display: none; animation: fadeIn 0.3s ease; }
-        .tab-content.active { display: block; }
+        // (Keep the rest of your Competition, Notifications, and Updates listeners same as before)
+        database.ref('Competition').on('value', snap => {
+            if(snap.exists()){
+                const d = snap.val();
+                document.getElementById('compStartD').value = d.StartDate || "";
+                document.getElementById('compStartT').value = d.StartTime || "";
+                document.getElementById('compEndD').value = d.EndDate || "";
+                document.getElementById('compEndT').value = d.EndTime || "";
+            }
+        });
+        database.ref('Notifications').on('value', snap => {
+            if(snap.exists()){
+                document.getElementById('notifTopic').value = snap.val().Topic || "";
+                document.getElementById('notifMessage').value = snap.val().Message || "";
+            }
+        });
+        database.ref('Updates').on('value', snap => {
+            if(snap.exists()){
+                document.getElementById('vNum').value = snap.val().Version || 0;
+                document.getElementById('vStatus').value = snap.val().Avalable || 0;
+            }
+        });
+        loadDynamicList('GuideVideos', 'guideList');
+        loadDynamicList('WinnersPosts', 'winnersList');
+    }
 
-        .nav-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .btn-nav { background: #424242; color: white; border: none; padding: 15px; border-radius: 12px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 13px; transition: 0.3s; }
-        .btn-nav:active { transform: scale(0.95); background: #000; }
-        .btn-purple { background: var(--primary); }
+    // --- 2. UPDATE: Clear fields after Single Upload ---
+    function uploadQuiz() {
+        const q = document.getElementById('qText').value;
+        const data = { 
+            question: q, 
+            correctAnswer: document.getElementById('correctAns').value, 
+            answers: [
+                document.getElementById('ans1').value, 
+                document.getElementById('ans2').value, 
+                document.getElementById('ans3').value, 
+                document.getElementById('ans4').value
+            ] 
+        };
+        
+        database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
+            alert("Quiz Saved Successfully!");
+            // Clean all text input fields
+            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => {
+                document.getElementById(i).value = "";
+            });
+        });
+    }
 
-        .card { background: var(--white); border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
-        .card-title { font-size: 16px; font-weight: 700; margin-bottom: 15px; color: var(--primary); border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        
-        .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 20px; }
-        .stat-bubble { background: var(--primary); color: white; padding: 15px 5px; border-radius: 15px; text-align: center; }
-        .stat-bubble span { display: block; font-size: 18px; font-weight: 800; }
-        .stat-bubble small { font-size: 9px; opacity: 0.8; text-transform: uppercase; }
-
-        .list-item { background: #f9f9f9; padding: 12px; border-radius: 10px; margin-bottom: 10px; border-left: 4px solid var(--primary); position: relative; cursor: pointer; }
-        .btn-delete { position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #ff5252; cursor: pointer; padding: 10px; }
-
-        .input-group { margin-bottom: 15px; }
-        label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 5px; color: #666; }
-        input, select, textarea { width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; background: #fafafa; }
-        .btn-save { background: var(--primary); color: white; border: none; width: 100%; padding: 15px; border-radius: 10px; font-weight: 700; cursor: pointer; margin-top: 10px; }
-
-        .bottom-nav { position: fixed; bottom: 0; width: 100%; background: var(--white); display: flex; justify-content: space-around; padding: 10px 0; box-shadow: 0 -2px 10px rgba(0,0,0,0.1); z-index: 1000; }
-        .nav-item { border: none; background: none; color: #888; display: flex; flex-direction: column; align-items: center; font-size: 10px; font-weight: 600; transition: 0.3s; width: 20%; cursor: pointer;}
-        .nav-item.active { color: var(--primary); }
-        .nav-item i { font-size: 20px; margin-bottom: 4px; }
-
-        .order-card { border: 1px solid #eee; padding: 12px; border-radius: 12px; margin-bottom: 10px; background: #fff; border-left: 5px solid var(--orange); font-size: 13px; }
-        .status-badge { font-size: 10px; padding: 3px 8px; border-radius: 20px; font-weight: bold; color: white; }
-        .s-approved { background: var(--orange); }
-        .s-delivery { background: var(--primary); }
-        .s-done { background: var(--green); }
-
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-
-        #loginOverlay { position: fixed; inset: 0; background: var(--primary); z-index: 2000; display: flex; justify-content: center; align-items: center; padding: 20px; }
-        .login-card { background: white; padding: 30px; border-radius: 20px; width: 100%; max-width: 350px; text-align: center; }
-    </style>
-</head>
-<body>
-
-<div id="loginOverlay">
-    <div class="login-card">
-        <i class="fas fa-user-shield" style="font-size: 40px; color: var(--primary);"></i>
-        <h2 style="margin: 15px 0;">Admin Auth</h2>
-        <input type="password" id="adminPass" placeholder="Enter Admin Key" style="text-align: center; letter-spacing: 3px;">
-        <button class="btn-save" onclick="attemptLogin()">Unlock Dashboard</button>
-    </div>
-</div>
-
-<div id="adminPanel" style="display:none;">
-    <div class="header"><h1>BRAITA ADMIN HUB</h1></div>
-
-    <div class="container">
-        <div id="nav-dash" class="tab-content active">
-            <div class="nav-grid">
-                <button class="btn-nav btn-purple" onclick="location.href='LiveUserRanking.html'">
-                    <i class="fas fa-users"></i> Users List
-                </button>
-                <button class="btn-nav" onclick="location.href='ManageQuizzes.html'">
-                    <i class="fas fa-edit"></i> Edit Quizzes
-                </button>
-            </div>
-
-            <div class="stats-row">
-                <div class="stat-bubble"><span id="valUsers">0</span><small>Users</small></div>
-                <div class="stat-bubble"><span id="valHigh">0</span><small>Record</small></div>
-                <div class="stat-bubble"><span id="valTotal">0</span><small>Quizzes</small></div>
-            </div>
-            
-            <div class="card">
-                <div class="card-title">Quick Add Quiz <small id="autoNextKey" style="float:right; color:#888; font-size:11px;"></small></div>
-                <div class="input-group"><label>Question</label><input type="text" id="qText"></div>
-                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
-                    <div class="input-group"><label>Option 1</label><input type="text" id="ans1"></div>
-                    <div class="input-group"><label>Option 2</label><input type="text" id="ans2"></div>
-                    <div class="input-group"><label>Option 3</label><input type="text" id="ans3"></div>
-                    <div class="input-group"><label>Option 4</label><input type="text" id="ans4"></div>
-                </div>
-                <div class="input-group"><label>Correct Answer Text</label><input type="text" id="correctAns"></div>
-                <button class="btn-save" onclick="uploadQuiz()">Submit Single Quiz</button>
-            </div>
-
-            <div class="card" style="border: 2px dashed var(--primary); background: #fdf7ff;">
-                <div class="card-title">Bulk Upload Quizzes (JSON)</div>
-                <div class="input-group">
-                    <label>Paste JSON Data</label>
-                    <textarea id="bulkJsonInput" rows="6" style="font-family: monospace; font-size: 12px;" placeholder='{"quiz01": {"question": "Example?", "answers": ["A", "B", "C", "D"], "correctAnswer": "A"}}'></textarea>
-                </div>
-                <button class="btn-save" style="background: #673AB7;" onclick="uploadBulkQuizzes()">Bulk Import</button>
-            </div>
-        </div>
-
-        <div id="nav-comp" class="tab-content">
-            <div class="card">
-                <div class="card-title">Competition Timing</div>
-                <div class="input-group"><label>Start Date (DD-MM-YYYY)</label><input type="text" id="compStartD"></div>
-                <div class="input-group"><label>Start Time (HH:MM)</label><input type="text" id="compStartT"></div>
-                <div class="input-group"><label>End Date (DD-MM-YYYY)</label><input type="text" id="compEndD"></div>
-                <div class="input-group"><label>End Time (HH:MM)</label><input type="text" id="compEndT"></div>
-                <button class="btn-save" onclick="updateCompetition()">Update Schedule</button>
-                <button class="btn-save" style="background:#d32f2f; margin-top:20px;" onclick="resetCompetitionPoints()">Reset Comp. Points</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">In-App Notifications</div>
-                <div class="input-group"><label>Notification Heading</label><input type="text" id="notifTopic"></div>
-                <div class="input-group"><label>Notification Message</label><input type="text" id="notifMessage"></div>
-                <button class="btn-save" style="background:#FF9800" onclick="updateNotifications()">Sync Notifications</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">App Update Control</div>
-                <div class="input-group"><label>Version Number</label><input type="number" id="vNum"></div>
-                <div class="input-group">
-                    <label>Update Available?</label>
-                    <select id="vStatus">
-                        <option value="1">Available (Force Update)</option>
-                        <option value="0">Not Available</option>
-                    </select>
-                </div>
-                <button class="btn-save" style="background:#424242" onclick="updateApp()">Sync Version</button>
-            </div>
-        </div>
-
-        <div id="nav-gifts" class="tab-content">
-            <div class="card">
-                <div class="card-title" id="giftFormTitle">Add New Gift</div>
-                <div class="input-group"><label>Gift ID</label><input type="text" id="gKey" disabled placeholder="Generating unique ID..."></div>
-                <div class="input-group"><label>Gift Name</label><input type="text" id="gName"></div>
-                <div class="input-group"><label>Points Cost</label><input type="number" id="gPoints"></div>
-                <div class="input-group"><label>Stock Amount</label><input type="number" id="gStock"></div>
-                <div class="input-group"><label>Image URL</label><input type="text" id="gImg"></div>
-                <button class="btn-save" id="btnGiftSave" onclick="saveGift()">Add to Store</button>
-                <button class="btn-save" id="btnGiftCancel" style="background:#666; display:none;" onclick="resetGiftForm()">Cancel Edit</button>
-            </div>
-
-            <div class="card">
-                <div class="card-title">Inventory</div>
-                <div id="giftInventoryList"></div>
-            </div>
-
-            <div class="card">
-                <div class="card-title">Orders</div>
-                <div id="orderList"></div>
-            </div>
-        </div>
-
-        <div id="nav-media" class="tab-content">
-            <div class="card">
-                <div class="card-title">Guide Videos</div>
-                <input type="text" id="vT" placeholder="Title">
-                <input type="text" id="vU" placeholder="URL" style="margin-top:10px;">
-                <button class="btn-save" onclick="addItem('GuideVideos', 'vT', 'vU')">Add Video</button>
-            </div>
-            <div id="guideList"></div>
-        </div>
-
-        <div id="nav-winners" class="tab-content">
-            <div class="card">
-                <div class="card-title">Add Winner Post</div>
-                <input type="text" id="wT" placeholder="Caption">
-                <input type="text" id="wU" placeholder="FB Post URL" style="margin-top:10px;">
-                <button class="btn-save" onclick="addItem('WinnersPosts', 'wT', 'wU')">Add Post</button>
-            </div>
-            <div id="winnersList"></div>
-        </div>
-    </div>
-
-    <div class="bottom-nav">
-        <button class="nav-item active" onclick="switchTab(this, 'nav-dash')"><i class="fas fa-home"></i>Home</button>
-        <button class="nav-item" onclick="switchTab(this, 'nav-comp')"><i class="fas fa-trophy"></i>Event</button>
-        <button class="nav-item" onclick="switchTab(this, 'nav-gifts')"><i class="fas fa-shopping-bag"></i>Gifts</button>
-        <button class="nav-item" onclick="switchTab(this, 'nav-media')"><i class="fas fa-play-circle"></i>Guides</button>
-        <button class="nav-item" onclick="switchTab(this, 'nav-winners')"><i class="fas fa-award"></i>Winners</button>
-    </div>
-</div>
-
-<script>
-    const firebaseConfig = { apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" };
-    firebase.initializeApp(firebaseConfig);
-    const database = firebase.database();
-
-    let adminDeviceId = localStorage.getItem('adminDeviceId') || 'br_'+Math.random().toString(36).substr(2,9);
-    localStorage.setItem('adminDeviceId', adminDeviceId);
-
-    window.onload = function() {
-        database.ref('AdminSessions/'+adminDeviceId).get().then(s => {
-            if(s.exists() && Date.now() - s.val().lastLogin < 86400000) { showPanel(); }
-        });
-    };
-
-    function attemptLogin() {
-        const pass = document.getElementById('adminPass').value;
-        database.ref('AdminLiginKey/Password').get().then(s => {
-            if(s.val() === pass) {
-                database.ref('AdminSessions/'+adminDeviceId).set({lastLogin: Date.now()}).then(showPanel);
-            } else { alert("Key Incorrect"); }
-        });
-    }
-
-    function showPanel() {
-        document.getElementById('loginOverlay').style.display = 'none';
-        document.getElementById('adminPanel').style.display = 'block';
-        initDashboard();
-        loadGifts();
-        loadOrders();
-        generateUniqueGiftID();
-    }
-
-    function switchTab(btn, tabId) {
-        document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
-        document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-        document.getElementById(tabId).classList.add('active');
-        btn.classList.add('active');
-
-        if(tabId === 'nav-gifts') {
-            const currentID = document.getElementById('gKey').value;
-            if(!currentID || currentID === "" || currentID.includes("Editing")) {
-                generateUniqueGiftID();
-            }
-        }
-    }
-
-    async function generateUniqueGiftID() {
-        const gKeyInput = document.getElementById('gKey');
-        gKeyInput.value = "Generating Unique ID...";
-        
-        let unique = false;
-        let newID = "";
-
-        while (!unique) {
-            let rand = Math.floor(1000 + Math.random() * 9000);
-            newID = "gift_" + rand;
-            const snapshot = await database.ref('Awards/' + newID).get();
-            if (!snapshot.exists()) {
-                unique = true;
-            }
-        }
-        gKeyInput.value = newID;
-    }
-
-    // --- 1. UPDATE: Auto-fill Question Number in initDashboard ---
-    function initDashboard() {
-        database.ref('User').on('value', snap => {
-            document.getElementById('valUsers').innerText = snap.numChildren();
-            let hScore = 0;
-            snap.forEach(c => { let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
-            document.getElementById('valHigh').innerText = hScore;
-        });
-
-        database.ref('Quizzes/Quizzes').on('value', snap => {
-            document.getElementById('valTotal').innerText = snap.numChildren();
-            
-            // Find the highest numeric ID correctly
-            let keys = Object.keys(snap.val() || {}).sort();
-            let lastKey = "quiz00000";
-            if(keys.length > 0) {
-                const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
-                lastKey = "quiz" + maxNum.toString().padStart(5,'0');
-            }
-            
-            // Generate the next ID
-            window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
-            
-            // --- CHANGE HERE: Automatically fill the Question Number input field ---
-            const qKeyField = document.getElementById('qText'); // Or your quiz number field ID
-            if(qKeyField) {
-                document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
-                // Note: If you have a separate input for 'Quiz Number', use that ID here.
-                // If you want the number added inside the Question text, uncomment below:
-                // qKeyField.value = window.nextKey + ": "; 
-            }
-        });
-
-        // (Keep the rest of your Competition, Notifications, and Updates listeners same as before)
-        database.ref('Competition').on('value', snap => {
-            if(snap.exists()){
-                const d = snap.val();
-                document.getElementById('compStartD').value = d.StartDate || "";
-                document.getElementById('compStartT').value = d.StartTime || "";
-                document.getElementById('compEndD').value = d.EndDate || "";
-                document.getElementById('compEndT').value = d.EndTime || "";
-            }
-        });
-        database.ref('Notifications').on('value', snap => {
-            if(snap.exists()){
-                document.getElementById('notifTopic').value = snap.val().Topic || "";
-                document.getElementById('notifMessage').value = snap.val().Message || "";
-            }
-        });
-        database.ref('Updates').on('value', snap => {
-            if(snap.exists()){
-                document.getElementById('vNum').value = snap.val().Version || 0;
-                document.getElementById('vStatus').value = snap.val().Avalable || 0;
-            }
-        });
-        loadDynamicList('GuideVideos', 'guideList');
-        loadDynamicList('WinnersPosts', 'winnersList');
-    }
-
-    // --- 2. UPDATE: Clear fields after Single Upload ---
-    function uploadQuiz() {
-        const q = document.getElementById('qText').value;
-        const data = { 
-            question: q, 
-            correctAnswer: document.getElementById('correctAns').value, 
-            answers: [
-                document.getElementById('ans1').value, 
-                document.getElementById('ans2').value, 
-                document.getElementById('ans3').value, 
-                document.getElementById('ans4').value
-            ] 
-        };
-        
-        database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
-            alert("Quiz Saved Successfully!");
-            // Clean all text input fields
-            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => {
-                document.getElementById(i).value = "";
-            });
-        });
-    }
-
-    // --- 3. UPDATE: Clear fields after Bulk Upload ---
-    function uploadBulkQuizzes() {
-        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
-        if (!jsonInput) return alert("Paste JSON data first");
-        
-        try {
-            const data = JSON.parse(jsonInput);
-            database.ref('Quizzes/Quizzes').update(data).then(() => {
-                alert("Bulk Import Successful!");
-                // Clean the bulk text input field
-                document.getElementById('bulkJsonInput').value = "";
-            });
-        } catch (e) { 
-            alert("JSON Error! Please check your formatting."); 
-        }
-    }
-
-    // --- UPDATE STARTS HERE: Clear fields for single quiz ---
-    function uploadQuiz() {
-        const q = document.getElementById('qText').value;
-        const data = { 
-            question: q, 
-            correctAnswer: document.getElementById('correctAns').value, 
-            answers: [
-                document.getElementById('ans1').value, 
-                document.getElementById('ans2').value, 
-                document.getElementById('ans3').value, 
-                document.getElementById('ans4').value
-            ] 
-        };
-        database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
-            alert("Saved!");
-            // Clean single quiz text input fields
-            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
-        });
-    }
-    // --- UPDATE ENDS HERE ---
-
-    // --- UPDATE STARTS HERE: Clear fields for bulk upload ---
-    function uploadBulkQuizzes() {
-        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
-        if (!jsonInput) return alert("Paste JSON");
-        try {
-            const data = JSON.parse(jsonInput);
-            database.ref('Quizzes/Quizzes').update(data).then(() => {
-                alert("Bulk Success!");
-                // Clean bulk text input field after success
-                document.getElementById('bulkJsonInput').value = "";
-            });
-        } catch (e) { alert("JSON Error!"); }
-    }
-    // --- UPDATE ENDS HERE ---
-
-    function updateCompetition() {
-        const data = {
-            StartDate: document.getElementById('compStartD').value,
-            StartTime: document.getElementById('compStartT').value,
-            EndDate: document.getElementById('compEndD').value,
-            EndTime: document.getElementById('compEndT').value,
-            Status: "Now"
-        };
-        database.ref('Competition').update(data).then(() => alert("Competition Dates Synced!"));
-    }
-
-    function updateNotifications() {
-        database.ref('Notifications').update({
-            Topic: document.getElementById('notifTopic').value,
-            Message: document.getElementById('notifMessage').value
-        }).then(() => alert("Notification Updated!"));
-    }
-
-    function updateApp() {
-        database.ref('Updates').update({
-            Version: parseInt(document.getElementById('vNum').value),
-            Avalable: parseInt(document.getElementById('vStatus').value)
-        }).then(() => alert("Update Settings Synced!"));
-    }
-
-    function resetCompetitionPoints() {
-        if (!confirm("Reset ALL users competition points to 0?")) return;
-        database.ref('User').once('value').then(snap => {
-            let up = {}; snap.forEach(u => { up[u.key + '/CompetitionPoints'] = 0; });
-            database.ref('User').update(up).then(() => alert("Reset Complete!"));
-        });
-    }
-
-    function saveGift() {
-        const key = document.getElementById('gKey').value;
-        if(!key || key.includes("Generating")) return alert("Please wait for ID generation");
-        
-        const data = { 
-            name: document.getElementById('gName').value, 
-            points: parseInt(document.getElementById('gPoints').value) || 0, 
-            stock: parseInt(document.getElementById('gStock').value) || 0, 
-            imageUrl: document.getElementById('gImg').value 
-        };
-        
-        if(!data.name || !data.imageUrl) return alert("Please fill Name and Image URL");
-
-        database.ref('Awards/'+key).set(data).then(() => { 
-            alert("Gifts Updated!"); 
-            resetGiftForm(); 
-        });
-    }
-
-    function loadGifts() {
-        database.ref('Awards').on('value', snap => {
-            const container = document.getElementById('giftInventoryList');
-            container.innerHTML = "";
-            
-            if(!snap.exists()) {
-                container.innerHTML = "<p style='text-align:center; color:#888;'>No items in inventory.</p>";
-                return;
-            }
-
-            snap.forEach(item => {
-                let d = item.val();
-                let stock = d.stock || 0;
-                let div = document.createElement('div');
-                div.className = "list-item";
-                div.style.display = "flex";
-                div.style.alignItems = "center";
-                div.style.gap = "12px";
-                div.style.padding = "10px";
-                
-                div.onclick = () => editGift(item.key, d.name, d.points, stock, d.imageUrl);
-                
-                div.innerHTML = `
-                    <img src="${d.imageUrl}" style="width:40px; height:40px; border-radius:8px; object-fit:cover;">
-                    <div style="flex:1;">
-                        <strong style="display:block; font-size:14px;">${d.name}</strong>
-                        <small style="color:var(--primary); font-weight:bold;">${d.points} Points</small>
-                    </div>
-                    
-                    <div style="text-align:right; margin-right:40px;">
-                        <span style="background:${stock > 0 ? '#E8F5E9' : '#FFEBEE'}; 
-                                     color:${stock > 0 ? '#2E7D32' : '#C62828'}; 
-                                     padding:4px 10px; border-radius:6px; font-size:11px; font-weight:bold; border: 1px solid currentColor;">
-                            Stock: ${stock}
-                        </span>
-                    </div>
-
-                    <i class="fas fa-trash btn-delete" onclick="event.stopPropagation(); if(confirm('Delete ${d.name}?')) database.ref('Awards/${item.key}').remove()"></i>
-                `;
-                container.appendChild(div);
-            });
-        });
-    }
-
-    function editGift(key, name, points, stock, img) {
-        document.getElementById('gKey').value = key; 
-        document.getElementById('gKey').disabled = true;
-        document.getElementById('gName').value = name; 
-        document.getElementById('gPoints').value = points;
-        document.getElementById('gStock').value = stock; 
-        document.getElementById('gImg').value = img;
-        
-        document.getElementById('giftFormTitle').innerText = "Editing: " + key;
-        document.getElementById('btnGiftSave').innerText = "Update Gift";
-        document.getElementById('btnGiftCancel').style.display = 'block';
-        window.scrollTo({top: 0, behavior: 'smooth'});
-    }
-
-    function resetGiftForm() {
-        ['gName','gPoints','gStock','gImg'].forEach(i => document.getElementById(i).value = "");
-        document.getElementById('giftFormTitle').innerText = "Add New Gift";
-        document.getElementById('btnGiftSave').innerText = "Add to Store";
-        document.getElementById('btnGiftCancel').style.display = 'none';
-        generateUniqueGiftID();
-    }
-
-    function loadOrders() {
-        database.ref('Orders').on('value', snap => {
-            const container = document.getElementById('orderList');
-            container.innerHTML = "";
-            
-            if(!snap.exists()) {
-                container.innerHTML = "<p style='text-align:center; color:#888; padding:20px;'>No orders found.</p>";
-                return;
-            }
-
-            let orders = [];
-            snap.forEach(o => { orders.push({id: o.key, ...o.val()}); });
-            orders.sort((a,b) => (b.timestamp || 0) - (a.timestamp || 0));
-
-            orders.forEach(o => {
-                const d = o.delivery || {};
-                const item = o.item || {};
-                const status = o.status || "Approved";
-                let sClass = status === 'Approved' ? 's-approved' : (status === 'In Delivery' ? 's-delivery' : 's-done');
-                let dateStr = o.timestamp ? new Date(o.timestamp).toLocaleString() : "Unknown Date";
-
-                container.innerHTML += `
-                <div class="order-card" style="border-left: 5px solid ${status === 'Delivered' ? '#4CAF50' : '#FF9800'}; padding: 15px; margin-bottom: 20px;">
-                    <div style="display:flex; justify-content:space-between; align-items:start; margin-bottom:10px; border-bottom:1px solid #eee; padding-bottom:8px;">
-                        <div>
-                            <span style="font-weight:bold; color:var(--primary); font-size:14px;">${o.userAccountName || 'Visitor'}</span><br>
-                            <small style="color:#888;">User ID: ${o.userAccountId || 'N/A'}</small><br>
-                            <small style="color:#aaa;">Ordered: ${dateStr}</small>
-                        </div>
-                        <span class="status-badge ${sClass}">${status}</span>
-                    </div>
-
-                    <div style="display:flex; gap:10px; background:#f9f9f9; padding:10px; border-radius:8px; margin-bottom:12px;">
-                        <img src="${item.imageUrl}" style="width:50px; height:50px; border-radius:5px; object-fit:cover;">
-                        <div>
-                            <strong style="display:block; font-size:14px;">${item.name || 'Gift Item'}</strong>
-                            <small style="color:var(--primary); font-weight:bold;">${item.points || 0} Points Deducted</small>
-                        </div>
-                    </div>
-
-                    <div style="background:#fff; border:1px dashed #ddd; padding:10px; border-radius:8px; font-size:13px;">
-                        <div style="margin-bottom:5px;"><i class="fas fa-user" style="width:20px; color:#666;"></i> Recipient: <strong>${d.deliveryName || 'N/A'}</strong></div>
-                        <div style="margin-bottom:5px;"><i class="fas fa-map-marker-alt" style="width:20px; color:#ff5252;"></i> Address: ${d.address || 'N/A'}, ${d.district || ''}</div>
-                        <div style="margin-bottom:5px;"><i class="fas fa-phone-alt" style="width:20px; color:#4CAF50;"></i> Contact: <a href="tel:${d.contact}" style="color:inherit; text-decoration:none;"><strong>${d.contact || 'N/A'}</strong></a></div>
-                    </div>
-
-                    <div style="margin-top:15px; display:flex; gap:10px;">
-                        <select onchange="database.ref('Orders/${o.id}').update({status: this.value})" style="flex:2; padding:8px; border-radius:8px; border:1px solid #ccc; font-size:12px; cursor:pointer;">
-                            <option value="">Change Status...</option>
-                            <option value="Approved" ${status === 'Approved' ? 'selected' : ''}>Approved</option>
-                            <option value="In Delivery" ${status === 'In Delivery' ? 'selected' : ''}>In Delivery</option>
-                            <option value="Delivered" ${status === 'Delivered' ? 'selected' : ''}>Delivered</option>
-                        </select>
-                        <button onclick="if(confirm('Delete order record?')) database.ref('Orders/${o.id}').remove()" style="flex:1; background:#ff5252; color:white; border:none; padding:8px; border-radius:8px; font-weight:bold; font-size:12px; cursor:pointer;">
-                            <i class="fas fa-trash"></i> Clear
-                        </button>
-                    </div>
-                </div>`;
-            });
-        });
-    }
-
-    function loadDynamicList(node, containerId) {
-        database.ref(node).on('value', snap => {
-            const container = document.getElementById(containerId);
-            container.innerHTML = "";
-            const d = snap.val() || {};
-            for (let i = 1; i <= 20; i++) {
-                let k = (node === 'GuideVideos' ? 'Video'+i : 'Post'+i);
-                let t = (node === 'GuideVideos' ? d['Video'+i+'Title'] : d['Caption'+i]);
-                if (d[k]) container.innerHTML += `<div class="list-item"><strong>${t}</strong><i class="fas fa-trash btn-delete" onclick="deleteItem('${node}', ${i})"></i></div>`;
-            }
-        });
-    }
-
-    function addItem(node, lId, uId) {
-        const t = document.getElementById(lId).value; const u = document.getElementById(uId).value;
-        database.ref(node).once('value', snap => {
-            let d = snap.val() || {}; let idx = 1;
-            while (d[(node === 'GuideVideos' ? 'Video' : 'Post') + idx]) { idx++; }
-            let up = {}; if (node === 'GuideVideos') { up['Video'+idx] = u; up['Video'+idx+'Title'] = t; } else { up['Post'+idx] = u; up['Caption'+idx] = t; }
-            database.ref(node).update(up).then(() => { document.getElementById(lId).value = ""; document.getElementById(uId).value = ""; });
-        });
-    }
-
-    function deleteItem(node, idx) {
-        let up = {}; if (node === 'GuideVideos') { up['Video'+idx] = null; up['Video'+idx+'Title'] = null; } else { up['Post'+idx] = null; up['Caption'+idx] = null; }
-        database.ref(node).update(up);
-    }
-</script>
-</body>
-</html>
+    // --- 3. UPDATE: Clear fields after Bulk Upload ---
+    function uploadBulkQuizzes() {
+        const jsonInput = document.getElementById('bulkJsonInput').value.trim();
+        if (!jsonInput) return alert("Paste JSON data first");
+        
+        try {
+            const data = JSON.parse(jsonInput);
+            database.ref('Quizzes/Quizzes').update(data).then(() => {
+                alert("Bulk Import Successful!");
+                // Clean the bulk text input field
+                document.getElementById('bulkJsonInput').value = "";
+            });
+        } catch (e) { 
+            alert("JSON Error! Please check your formatting."); 
+        }
+    }

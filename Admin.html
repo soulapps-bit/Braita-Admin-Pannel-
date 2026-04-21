@@ -267,9 +267,22 @@
             snap.forEach(c => { let p = c.val().MyPoints || 0; if(p > hScore) hScore = p; });
             document.getElementById('valHigh').innerText = hScore;
         });
+
+        // --- UPDATE STARTS HERE: Auto Quiz Key Logic in Listener ---
         database.ref('Quizzes/Quizzes').on('value', snap => {
             document.getElementById('valTotal').innerText = snap.numChildren();
+            
+            // Generate the next numeric quiz ID based on current max
+            let keys = Object.keys(snap.val() || {}).sort();
+            let lastKey = "quiz00000";
+            if(keys.length > 0) {
+                const maxNum = Math.max(...keys.map(k => parseInt(k.replace('quiz','')) || 0));
+                lastKey = "quiz" + maxNum.toString().padStart(5,'0');
+            }
+            window.nextKey = "quiz" + (parseInt(lastKey.replace('quiz','')) + 1).toString().padStart(5,'0');
+            document.getElementById('autoNextKey').innerText = "Next: " + window.nextKey;
         });
+        // --- UPDATE ENDS HERE ---
 
         database.ref('Competition').on('value', snap => {
             if(snap.exists()){
@@ -299,20 +312,41 @@
         loadDynamicList('WinnersPosts', 'winnersList');
     }
 
+    // --- UPDATE STARTS HERE: Clear fields for single quiz ---
     function uploadQuiz() {
         const q = document.getElementById('qText').value;
-        const data = { question: q, correctAnswer: document.getElementById('correctAns').value, answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] };
-        database.ref('Quizzes/Quizzes/' + Date.now()).set(data).then(() => alert("Saved!"));
+        const data = { 
+            question: q, 
+            correctAnswer: document.getElementById('correctAns').value, 
+            answers: [
+                document.getElementById('ans1').value, 
+                document.getElementById('ans2').value, 
+                document.getElementById('ans3').value, 
+                document.getElementById('ans4').value
+            ] 
+        };
+        database.ref('Quizzes/Quizzes/' + (window.nextKey || Date.now())).set(data).then(() => {
+            alert("Saved!");
+            // Clean single quiz text input fields
+            ['qText','ans1','ans2','ans3','ans4','correctAns'].forEach(i => document.getElementById(i).value = "");
+        });
     }
+    // --- UPDATE ENDS HERE ---
 
+    // --- UPDATE STARTS HERE: Clear fields for bulk upload ---
     function uploadBulkQuizzes() {
         const jsonInput = document.getElementById('bulkJsonInput').value.trim();
         if (!jsonInput) return alert("Paste JSON");
         try {
             const data = JSON.parse(jsonInput);
-            database.ref('Quizzes/Quizzes').update(data).then(() => alert("Bulk Success!"));
+            database.ref('Quizzes/Quizzes').update(data).then(() => {
+                alert("Bulk Success!");
+                // Clean bulk text input field after success
+                document.getElementById('bulkJsonInput').value = "";
+            });
         } catch (e) { alert("JSON Error!"); }
     }
+    // --- UPDATE ENDS HERE ---
 
     function updateCompetition() {
         const data = {

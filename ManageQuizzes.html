@@ -17,16 +17,20 @@
         .field-group { margin-bottom: 15px; text-align: left; }
         .field-label { font-size: 12px; color: #666; margin-bottom: 5px; display: block; font-weight: 600; padding-left: 5px; }
         input { width: 100%; padding: 12px; border: 1px solid #E1BEE7; border-radius: 4px; background: #F3E5F5; box-sizing: border-box; outline: none; }
-        input:focus { border-color: var(--primary); background: #fff; }
         
+        /* Search Styling */
         .search-container { display: flex; gap: 10px; margin-top: 20px; align-items: center; justify-content: center; }
         .search-bar { flex: 1; padding: 12px; border: 2px solid var(--primary); border-radius: 25px; background: white; font-size: 14px; outline: none; text-align: center; }
-        
-        /* Pagination Styling */
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 15px; margin: 20px 0; }
-        .btn-page { background: var(--primary); color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 13px; }
-        .btn-page:disabled { background: #ccc; cursor: not-allowed; }
-        #pageIndicator { font-weight: bold; color: var(--primary); font-size: 14px; }
+        .btn-search { background: var(--primary); color: white; border: none; padding: 12px 25px; border-radius: 25px; cursor: pointer; font-weight: bold; }
+
+        /* IMAGE STYLE PAGINATION */
+        .pagination-container { display: flex; justify-content: center; margin: 25px 0; user-select: none; }
+        .pag-box { display: flex; background: #eeeeee; padding: 5px; border-radius: 5px; box-shadow: inset 0 2px 5px rgba(0,0,0,0.1); gap: 5px; align-items: center; }
+        .pag-btn { padding: 8px 12px; cursor: pointer; border-radius: 4px; font-weight: bold; font-size: 13px; color: #555; transition: 0.2s; border: 1px solid transparent; }
+        .pag-btn:hover { background: #e0e0e0; }
+        .pag-btn.active { background: var(--primary); color: white; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
+        .pag-btn.disabled { color: #ccc; cursor: not-allowed; }
+        .pag-text { font-size: 12px; font-weight: bold; color: #888; margin-right: 10px; text-transform: uppercase; }
 
         .table-wrap { overflow-x: auto; width: 100%; }
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
@@ -35,9 +39,9 @@
         
         .btn-edit { background: var(--primary); color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; margin-right: 5px; }
         .btn-delete { background: #F44336; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        .btn-submit { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; }
+        .btn-submit { background: var(--primary); color: white; width: 100%; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 15px; margin-bottom: 20px;}
 
-        #loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; }
+        #loading { text-align: center; color: var(--primary); font-weight: bold; padding: 20px; display: none; }
     </style>
 </head>
 <body>
@@ -45,9 +49,7 @@
         <div class="banner"><button class="btn-back" onclick="location.href='Admin.html'">Back</button>Manage Quizzes</div>
         
         <div class="content">
-            <div style="text-align:center; color:var(--primary); font-size:16px; font-weight:bold; margin-bottom:20px;">Edit Quiz Question</div>
-            
-            <div class="field-group"><span class="field-label">Quiz Number (ID)</span><input type="text" id="qKey"></div>
+            <div class="field-group"><span class="field-label">Quiz ID</span><input type="text" id="qKey" readonly style="background:#eee"></div>
             <div class="field-group"><span class="field-label">Question</span><input type="text" id="qText"></div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                 <div class="field-group"><span class="field-label">Answer 1</span><input type="text" id="ans1"></div>
@@ -55,21 +57,24 @@
                 <div class="field-group"><span class="field-label">Answer 3</span><input type="text" id="ans3"></div>
                 <div class="field-group"><span class="field-label">Answer 4</span><input type="text" id="ans4"></div>
             </div>
-            <div class="field-group"><span class="field-label">Correct Answer Text</span><input type="text" id="correctAns"></div>
-            
-            <button id="mainBtn" onclick="save()" class="btn-submit">Submit Quiz Changes</button>
+            <div class="field-group"><span class="field-label">Correct Answer</span><input type="text" id="correctAns"></div>
+            <button id="mainBtn" onclick="save()" class="btn-submit">Update Quiz Changes</button>
             
             <div class="search-container">
-                <input type="text" class="search-bar" id="search" onkeyup="filter()" placeholder="🔍 Search Quiz ID or Question...">
+                <input type="text" class="search-bar" id="search" placeholder="Enter Quiz ID (e.g. quiz00001) or Question Text...">
+                <button class="btn-search" onclick="globalSearch()">SEARCH</button>
             </div>
 
-            <div class="pagination">
-                <button class="btn-page" id="btnPrev" onclick="prevPage()"><i class="fas fa-arrow-left"></i> Prev</button>
-                <span id="pageIndicator">Page 1</span>
-                <button class="btn-page" id="btnNext" onclick="nextPage()">Next <i class="fas fa-arrow-right"></i></button>
+            <div class="pagination-container">
+                <div class="pag-box">
+                    <span class="pag-text">PAGE</span>
+                    <div class="pag-btn" id="prevGroup" onclick="changePageGroup(-1)"><i class="fas fa-chevron-left"></i></div>
+                    <div id="pageNumbers" style="display:flex; gap:5px;"></div>
+                    <div class="pag-btn" id="nextGroup" onclick="changePageGroup(1)"><i class="fas fa-chevron-right"></i></div>
+                </div>
             </div>
             
-            <div id="loading">Connecting...</div>
+            <div id="loading">Connecting to Database...</div>
 
             <div class="table-wrap">
                 <table>
@@ -87,128 +92,168 @@
     </div>
 
     <script>
-        const firebaseConfig = { 
-            apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", 
-            databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" 
-        };
+        const firebaseConfig = { apiKey: "AIzaSyDOBYUY8CpTN6myiwkQYwO-dPm8Cc24MA8", databaseURL: "https://braita-cf3e7-default-rtdb.firebaseio.com" };
         firebase.initializeApp(firebaseConfig);
         const database = firebase.database();
 
-        let lastVisibleKey = null;
-        let firstVisibleKey = null;
-        let pageStack = [];
-        let pageSize = 20;
+        let allQuizKeys = [];
+        let currentPage = 1;
+        let pageSize = 15;
+        let currentGroup = 0;
 
-        // 1. Load Quizzes with Pagination Logic
-        function load(direction = 'first') {
-            const loader = document.getElementById('loading');
-            const body = document.getElementById('list');
-            loader.style.display = "block";
-            
-            let query = database.ref('Quizzes/Quizzes').orderByKey();
-
-            if (direction === 'next' && lastVisibleKey) {
-                query = query.startAfter(lastVisibleKey).limitToFirst(pageSize);
-            } else if (direction === 'prev' && firstVisibleKey) {
-                query = query.endBefore(firstVisibleKey).limitToLast(pageSize);
-            } else {
-                query = query.limitToFirst(pageSize);
-                pageStack = [];
-            }
-
-            query.once('value', snap => {
-                body.innerHTML = "";
-                loader.style.display = "none";
-
-                if (snap.exists()) {
-                    let keys = Object.keys(snap.val());
-                    firstVisibleKey = keys[0];
-                    lastVisibleKey = keys[keys.length - 1];
-
-                    snap.forEach(c => {
-                        let quiz = c.val();
-                        body.innerHTML += `
-                            <tr class="q-row">
-                                <td><strong>${c.key}</strong></td>
-                                <td style="text-align:left">${quiz.question || '---'}</td>
-                                <td>
-                                    <button class="btn-edit" onclick="edit('${c.key}')">Edit</button>
-                                    <button class="btn-delete" onclick="deleteQuiz('${c.key}')">Delete</button>
-                                </td>
-                            </tr>`;
-                    });
-                    
-                    document.getElementById('btnPrev').disabled = (pageStack.length === 0);
-                    document.getElementById('pageIndicator').innerText = `Page ${pageStack.length + 1}`;
+        // 1. Initial Load: Get all keys only (fast) to build pagination
+        function init() {
+            document.getElementById('loading').style.display = "block";
+            database.ref('Quizzes/Quizzes').orderByKey().once('value', snap => {
+                if(snap.exists()){
+                    allQuizKeys = Object.keys(snap.val()).reverse(); // Reversing for Last to First
+                    renderPagination();
+                    loadPage(1);
                 }
             });
         }
 
-        function nextPage() {
-            pageStack.push(firstVisibleKey);
-            load('next');
+        // 2. Load specific page data
+        async function loadPage(page) {
+            currentPage = page;
+            const body = document.getElementById('list');
+            const loader = document.getElementById('loading');
+            body.innerHTML = "";
+            loader.style.display = "block";
+
+            const startIdx = (page - 1) * pageSize;
+            const endIdx = startIdx + pageSize;
+            const keysToShow = allQuizKeys.slice(startIdx, endIdx);
+
+            for (let key of keysToShow) {
+                const snap = await database.ref('Quizzes/Quizzes/' + key).once('value');
+                const quiz = snap.val();
+                body.innerHTML += `
+                    <tr class="q-row">
+                        <td><strong>${key}</strong></td>
+                        <td style="text-align:left">${quiz.question || '---'}</td>
+                        <td>
+                            <button class="btn-edit" onclick="edit('${key}')">Edit</button>
+                            <button class="btn-delete" onclick="deleteQuiz('${key}')">Delete</button>
+                        </td>
+                    </tr>`;
+            }
+            loader.style.display = "none";
+            renderPagination();
         }
 
-        function prevPage() {
-            pageStack.pop();
-            load('prev');
+        // 3. Render Numbered Pagination (Image Style)
+        function renderPagination() {
+            const container = document.getElementById('pageNumbers');
+            container.innerHTML = "";
+            const totalPages = Math.ceil(allQuizKeys.length / pageSize);
+            
+            let startPage = (currentGroup * 5) + 1;
+            let endPage = Math.min(startPage + 4, totalPages);
+
+            for (let i = startPage; i <= endPage; i++) {
+                const btn = document.createElement('div');
+                btn.className = `pag-btn ${i === currentPage ? 'active' : ''}`;
+                btn.innerText = i;
+                btn.onclick = () => loadPage(i);
+                container.appendChild(btn);
+            }
+        }
+
+        function changePageGroup(dir) {
+            const totalPages = Math.ceil(allQuizKeys.length / pageSize);
+            let nextGroup = currentGroup + dir;
+            if (nextGroup >= 0 && nextGroup * 5 < totalPages) {
+                currentGroup = nextGroup;
+                renderPagination();
+            }
+        }
+
+        // 4. GLOBAL SEARCH (All quizzes)
+        async function globalSearch() {
+            const term = document.getElementById('search').value.trim().toLowerCase();
+            if (!term) { init(); return; }
+
+            const body = document.getElementById('list');
+            const loader = document.getElementById('loading');
+            body.innerHTML = "";
+            loader.style.display = "block";
+
+            // If user enters exact ID
+            if (term.startsWith("quiz")) {
+                const snap = await database.ref('Quizzes/Quizzes/' + term).once('value');
+                if (snap.exists()) {
+                    renderSearchResult(term, snap.val());
+                    loader.style.display = "none";
+                    return;
+                }
+            }
+
+            // Search by text (Full Node Scan - use carefully)
+            database.ref('Quizzes/Quizzes').once('value', snap => {
+                let found = 0;
+                snap.forEach(c => {
+                    const data = c.val();
+                    if (c.key.includes(term) || (data.question && data.question.toLowerCase().includes(term))) {
+                        renderSearchResult(c.key, data);
+                        found++;
+                    }
+                });
+                if (found === 0) body.innerHTML = "<tr><td colspan='3'>No results found across database.</td></tr>";
+                loader.style.display = "none";
+            });
+        }
+
+        function renderSearchResult(key, data) {
+            document.getElementById('list').innerHTML += `
+                <tr class="q-row">
+                    <td><strong>${key}</strong></td>
+                    <td style="text-align:left">${data.question || '---'}</td>
+                    <td>
+                        <button class="btn-edit" onclick="edit('${key}')">Edit</button>
+                        <button class="btn-delete" onclick="deleteQuiz('${key}')">Delete</button>
+                    </td>
+                </tr>`;
         }
 
         function edit(key) {
             database.ref('Quizzes/Quizzes/' + key).once('value').then(snap => {
-                if (snap.exists()) {
-                    const d = snap.val(); 
-                    document.getElementById('qKey').value = key; 
-                    document.getElementById('qText').value = d.question || "";
-                    document.getElementById('correctAns').value = d.correctAnswer || ""; 
-                    const answers = d.answers || ["", "", "", ""];
-                    document.getElementById('ans1').value = answers[0] || "";
-                    document.getElementById('ans2').value = answers[1] || ""; 
-                    document.getElementById('ans3').value = answers[2] || "";
-                    document.getElementById('ans4').value = answers[3] || ""; 
-                    document.getElementById('mainBtn').innerText = "Update Quiz Settings";
-                    window.scrollTo({top: 0, behavior: 'smooth'});
-                }
+                const d = snap.val();
+                document.getElementById('qKey').value = key;
+                document.getElementById('qText').value = d.question || "";
+                document.getElementById('correctAns').value = d.correctAnswer || "";
+                document.getElementById('ans1').value = d.answers[0] || "";
+                document.getElementById('ans2').value = d.answers[1] || "";
+                document.getElementById('ans3').value = d.answers[2] || "";
+                document.getElementById('ans4').value = d.answers[3] || "";
+                window.scrollTo({top: 0, behavior: 'smooth'});
+            });
+        }
+
+        function save() {
+            const key = document.getElementById('qKey').value;
+            if (!key) return alert("Select a quiz to edit");
+            const data = {
+                question: document.getElementById('qText').value,
+                correctAnswer: document.getElementById('correctAns').value,
+                answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value]
+            };
+            database.ref('Quizzes/Quizzes/' + key).update(data).then(() => {
+                alert("Saved!");
+                loadPage(currentPage);
             });
         }
 
         function deleteQuiz(key) {
             if (confirm("Delete " + key + "?")) {
                 database.ref('Quizzes/Quizzes/' + key).remove().then(() => {
-                    alert("Deleted");
-                    load();
+                    allQuizKeys = allQuizKeys.filter(k => k !== key);
+                    loadPage(currentPage);
                 });
             }
         }
 
-        function save() { 
-            const key = document.getElementById('qKey').value;
-            if (!key) return alert("Select a quiz");
-
-            const data = { 
-                question: document.getElementById('qText').value, 
-                correctAnswer: document.getElementById('correctAns').value, 
-                answers: [document.getElementById('ans1').value, document.getElementById('ans2').value, document.getElementById('ans3').value, document.getElementById('ans4').value] 
-            };
-
-            database.ref('Quizzes/Quizzes/' + key).set(data).then(() => { 
-                alert("Updated!"); 
-                ['qKey','qText','ans1','ans2','ans3','ans4','correctAns'].forEach(id => document.getElementById(id).value = "");
-                document.getElementById('mainBtn').innerText = "Submit Quiz Changes";
-                load();
-            });
-        }
-
-        function filter() {
-            const input = document.getElementById('search').value.toLowerCase();
-            const rows = document.getElementsByClassName('q-row');
-            for (let r of rows) { 
-                // Checks both the Key (ID) and the Question Preview text
-                r.style.display = r.innerText.toLowerCase().includes(input) ? "" : "none"; 
-            }
-        }
-
-        load();
+        init();
     </script>
 </body>
 </html>

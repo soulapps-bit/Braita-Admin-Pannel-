@@ -56,7 +56,7 @@
                 <thead>
                     <tr>
                         <th>Rank</th>
-                        <th>UserTag</th>
+                        <th>User ID</th> <th>UserTag</th>
                         <th>User Name</th>
                         <th>Joined</th>
                         <th>Active</th>
@@ -140,7 +140,7 @@
                     body.innerHTML += `
                         <tr class="user-row" ${rank <= 1 ? 'style="border-left: 5px solid gold;"' : ''}>
                             <td style="font-weight:bold">#${rank.toString().padLeft(2, '0')}</td>
-                            <td><span class="user-tag">${u.UserTag || 'N/A'}</span></td>
+                            <td style="font-size: 11px; color: #888; font-family: monospace;">${u.id}</td> <td><span class="user-tag">${u.UserTag || 'N/A'}</span></td>
                             <td style="text-align:left"><strong>${u.UserName || 'Visitor'}</strong></td>
                             <td style="font-size:12px">${u.JoiningDateDisplay}</td>
                             <td style="font-weight:bold">${u.ActiveDays} Days</td>
